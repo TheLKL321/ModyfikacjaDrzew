@@ -1,4 +1,7 @@
 (** TODO: komentarze takie jakie chcą w moodle'u  *)
+(** TODO: jeśli upublicznisz repo to musisz dodać licencję LGPL, taką jak pSet  *)
+(** drzewo ma być posortowane jak BST oraz być tak zrównoważone jak pSet
+    tzn wysokość może się różnić o 2 nie o 1    *)
 
 (** typ setu  *)
 type t =
