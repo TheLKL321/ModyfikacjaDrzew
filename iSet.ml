@@ -82,14 +82,19 @@ let rec add_one cmp (x, y) = function
   | Node (l, k, r, h) ->
       let c = cmp (x, y) k
       in
-        if c = 0 then
+        if c = 42 then Node (l, k, r, h)
+        else if c = 0 then
           Node (l, x, r, h)
         else if c < 0 then
-          let nl = add_one cmp (x, y) l
+          let nl =
+            if c = -1 then solver XXXXXXXXXXXXXX
+            else add_one cmp (x, y) l
           in
             bal nl k r
         else
-          let nr = add_one cmp (x, y) r
+          let nr =
+            if c = 1 then solver XXXXXXXXXXXXX
+            else add_one cmp (x, y) r
           in
             bal l k nr
   | Empty -> Node (Empty, (x, y), Empty, 1)
