@@ -1,16 +1,45 @@
 (** TODO: komentarze takie jakie chcą w moodle'u  *)
 (** TODO: jeśli upublicznisz repo to musisz dodać licencję LGPL, taką jak pSet  *)
-(** drzewo ma być posortowane jak BST oraz być tak zrównoważone jak pSet
-    tzn wysokość może się różnić o 2 nie o 1    *)
 
-(** typ setu  *)
+(** typ setu
+    Node(lewe poddrzewo, przedział, prawe poddrzewo, wysokość drzewa) *)
+type set =
+  | Empty
+  | Node of set * (int * int) * set * int
+
+(** typ zawierający funkcję porównującą dwa przedziały oraz jeden set *)
 type t =
+  {
+    cmp : (int * int) -> (int * int) -> int;
+    set : set;
+  }
+
+(** Zwraca:
+    -2 jeśli b < c
+    -1 jeśli a < c lecz c <= b <= d
+     0 jeśli a < c oraz b > d
+     1 jeśli b > d lecz c <= a <= d
+     2 jeśli a > d
+     42 jeśli c <= a <= b <= d *)
+let iCompare (a, b) (c, d) =
+  if b < c then -2
+  else if a < c && b <= d then -1
+  else if a < c && b > d then 0
+  else if a > d then 2
+  else if a >= c && b > d then 1
+  else 42
 
 (** Zwraca pusty set  *)
-val empty : t
+let empty = { cmp = iCompare; set = Empty }
+
+(** Szuka przedziału w poddrzewie drzewa t ze strony str (lewej/prawer) który
+    nachodzi na przedział w korzeniu. Gdy taki znajdzie, dodaje go do korzenia,
+    a jego rozłączne poddrzewa dołącza do jego ojca *)
+let solver t str = 42
 
 (** Sprawdza czy set s jest pusty  *)
-let is_empty s = 42
+let is_empty s =
+  s.set = Empty
 
 (** Zwraca set będący wynikiem dodania elementów przedziału (x, y) do setu s
     x <= y    *)
