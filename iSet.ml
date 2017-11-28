@@ -32,14 +32,38 @@ let iCompare (a, b) (c, d) =
 (** Zwraca pusty set  *)
 let empty = { cmp = iCompare; set = Empty }
 
-(** Szuka przedziału w poddrzewie drzewa t ze strony str (lewej/prawer) który
-    nachodzi na przedział w korzeniu. Gdy taki znajdzie, dodaje go do korzenia,
-    a jego rozłączne poddrzewa dołącza do jego ojca *)
-let solver t str = 42
+(** Szuka przedziału w drzewie t, będącym poddrzewem ze strony str
+    (lewej/prawer) który nachodzi na przedział k. Gdy taki znajdzie, dodaje go
+    do korzenia, a jego rozłączne poddrzewa dołącza do jego ojca *)
+let solver str (c, d) t =
+  let rec pom = function
+    | Empty ->
+    | Node (l, (a, b), r, h) ->
+        let c = iCompare (a, b) (c, d)
+        in
+          if str = "left"
+            if c = -2 then
+              let sr = solver str (c, d) r
+              in
+                make l (a, b) sr
+            else if c = -1 then
+              Node (l, (c, a - 1), Empty, height l)
+            else l
+          else
+            if c = 2 then
+              let sl = solver str (c, d) l
+              in
+                make sl (a, b) r
+            else if c = 1 then
+              Node (Empty, (c, a - 1), r, height r)
+            else r
 
 (** Sprawdza czy set s jest pusty  *)
 let is_empty s =
   s.set = Empty
+
+(** Zwraca sumę dwóch przediałów  *)
+let sum (a, b) (c, d) = (min a c, max b d)
 
 (** Zwraca wysokość danego drzewa  *)
 let height = function
@@ -77,24 +101,31 @@ let bal l k r =
   else Node (l, k, r, max hl hr + 1)
 
 (** Używana przez add do dodawania (x, y) do danego setu  *)
-(** TODO: modify to include omnomnomnom cases  *)
 let rec add_one cmp (x, y) = function
   | Node (l, k, r, h) ->
       let c = cmp (x, y) k
       in
-        if c = 42 then Node (l, k, r, h)
-        else if c = 0 then
-          Node (l, x, r, h)
-        else if c < 0 then
-          let nl =
-            if c = -1 then solver XXXXXXXXXXXXXX
-            else add_one cmp (x, y) l
+        if c = 42 then
+          Node (l, k, r, h)
+        else if c = -2 then
+          let nl = add_one cmp (x, y) l
           in
             bal nl k r
+        else if c = -1 then
+          let nl = solver "left" k l
+          in
+            bal nl (sum (x, y) k) r
+        else if c = 0 then
+          let nl = solver "left" k l
+          and nr = solver "right" k r
+          in
+            bal nl (x, y) nr
+        else if c = 1 then
+          let nr = solver "right" k r
+          in
+            bal l (sum (x, y) k) nr
         else
-          let nr =
-            if c = 1 then solver XXXXXXXXXXXXX
-            else add_one cmp (x, y) r
+          let nr = add_one cmp (x, y) r
           in
             bal l k nr
   | Empty -> Node (Empty, (x, y), Empty, 1)
