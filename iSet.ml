@@ -15,17 +15,17 @@ type t =
   }
 
 (** Zwraca:
-    -2 jeśli b < c
-    -1 jeśli a < c lecz c <= b <= d
-     0 jeśli a < c oraz b > d
-     1 jeśli b > d lecz c <= a <= d
-     2 jeśli a > d
-     42 jeśli c <= a <= b <= d *)
+    -2 jeśli (a, b) < (c, d)
+    -1 jeśli (a, b) i (c, d) nachodzą na siebie i a < c i b < d
+     0 jeśli (a, b) i (c, d) nachodzą na siebie i a < c i b > d
+     1 jeśli (a, b) i (c, d) nachodzą na siebie i a > c i b > d
+     2 jeśli (a, b) > (c, d)
+     42 jeśli (a, b) zawiera się w (c, d) *)
 let iCompare (a, b) (c, d) =
-  if b < c then -2
+  if b < c - 1 then -2
   else if a < c && b <= d then -1
   else if a < c && b > d then 0
-  else if a > d then 2
+  else if a > d + 1 then 2
   else if a >= c && b > d then 1
   else 42
 
