@@ -29,6 +29,10 @@ let iCompare (a, b) (c, d) =
   else if a >= c && b > d then 1
   else 42
 
+(** Sprawdza czy dany przedział zawiera liczbę x  *)
+let zawiera (a, b) x =
+  x >= a && x <= b
+
 (** Zwraca pusty set  *)
 let empty = { cmp = iCompare; set = Empty }
 
