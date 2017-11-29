@@ -146,7 +146,7 @@ let remove (x, y) s = 42
 (** Sprawdza czy set s zawiera element x  *)
 let mem x s = 42
 
-(** TODO: dafuq does it do?   *)
+(** Iteruje po secie w rosnącej kolejności  *)
 let iter f s = 42
 
 (** Oblicza wartość (f xN ... (f x2 (f x1 a))...) gdzie x1, ..., xN to kolejne
