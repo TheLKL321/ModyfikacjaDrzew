@@ -156,6 +156,27 @@ let rec add_one cmp (x, y) = function
 let add (x, y) { cmp = cmp; set = set } =
   { cmp = cmp; set = add_one cmp (x, y) set }
 
+(** Zwraca najmniejszy element w drzewie  *)
+let rec min_elt = function
+  | Node (Empty, k, _, _) -> k
+  | Node (l, _, _, _) -> min_elt l
+  | Empty -> raise Not_found
+
+(** Zwraca drzewo bez jego najmniejszego elementu  *)
+let rec remove_min_elt = function
+  | Node (Empty, _, r, _) -> r
+  | Node (l, k, r, _) -> bal (remove_min_elt l) k r
+  | Empty -> invalid_arg "PSet.remove_min_elt"
+
+(** Złącza ze sobą drzewa t1 i t2  *)
+let merge t1 t2 =
+  match t1, t2 with
+  | Empty, _ -> t2
+  | _, Empty -> t1
+  | _ ->
+      let k = min_elt t2 in
+      bal t1 k (remove_min_elt t2)
+
 (** Zwraca set będący wynikiem usunięcia z setu s elementów przedziału (x, y)
     x <= y    *)
 let remove (x, y) { cmp = cmp; set = set } =
