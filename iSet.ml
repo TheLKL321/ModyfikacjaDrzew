@@ -182,19 +182,20 @@ let rec join cmp l v r =
 (** Zwraca trójkę (l, p, r) w której l jest setem elementów setu s mniejszych
     od x, r jest setem elementów setu s większych od x, p jest równe false jeśli
     s nie zawiera elementu równego x, true jeśli zawiera *)
-let split x { _ ; set = set } =
+let split x { cmp = cmp ; set = set } =
   let rec loop x = function
       Empty ->
         (Empty, false, Empty)
-    | Node (l, v, r, _) ->
-        let c = nCompare x v in
-        if c = 0 then (l, true, r)
+    | Node (l, (a, b), r, _) ->
+        let c = nCompare x (a, b) in
+        if c = 0 then
+          (add_one cmp (a, x - 1) l, true, add_one cmp (x + 1, b) r)
         else if c < 0 then
-          let (ll, pres, rl) = loop x l in (ll, pres, join cmp rl v r)
+          let (ll, pres, rl) = loop x l in (ll, pres, join cmp rl (a, b) r)
         else
-          let (lr, pres, rr) = loop x r in (join cmp l v lr, pres, rr)
+          let (lr, pres, rr) = loop x r in (join cmp l (a, b) lr, pres, rr)
   in
-  let setl, pres, setr = loop x set in
+  let (setl, pres, setr) = loop x set in
   { cmp = cmp; set = setl }, pres, { cmp = cmp; set = setr }
 
 ;;
