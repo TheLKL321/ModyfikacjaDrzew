@@ -45,30 +45,38 @@ let zawiera (a, b) x =
 (** Zwraca pusty set  *)
 let empty = { cmp = iCompare; set = Empty }
 
-(** Szuka przedziału w drzewie t, będącym poddrzewem ze strony str
-    (lewej/prawer) który nachodzi na przedział k. Gdy taki znajdzie, dodaje go
-    do korzenia, a jego rozłączne poddrzewa dołącza do jego ojca *)
-let solver str (c, d) t =
+(** Złącza sety l i r dodając do nich przedział v  *)
+let rec join cmp l v r =
+  match (l, r) with
+    (Empty, _) -> add_one cmp v r
+  | (_, Empty) -> add_one cmp v l
+  | (Node(ll, lv, lr, lh), Node(rl, rv, rr, rh)) ->
+      if lh > rh + 2 then bal ll lv (join cmp lr v r) else
+      if rh > lh + 2 then bal (join cmp l v rl) rv rr else
+      make l v r
+
+(** Usuwa z drzewa odpowiednie przedziały tak, aby pozostałe przedziały
+    pozostały rozłączne *)
+let solver str x t =
   let rec pom = function
     | Empty ->
     | Node (l, (a, b), r, h) ->
-        let c = iCompare (a, b) (c, d)
-        in
-          if str = "left"
-            if c = -2 then
-              let sr = solver str (c, d) r
-              in
-                make l (a, b) sr
-            else if c = -1 then
-              Node (l, (c, a - 1), Empty, height l)
-            else l
-          else
-            if c = 2 then
-              let sl = solver str (c, d) l
-              in
-                make sl (a, b) r
-            else if c = 1 then
-              Node (Empty, (c, a - 1), r, height r)
+        if str = "left" then
+          let c = nCompare x (a, b + 1)
+          in
+            if c < 0 then
+              solver str x l
+            else if c > 0 then
+              join l (a, b) (pom r)
+            else
+              r
+        else
+          let c = nCompare x (a - 1, b)
+          in
+            if c < 0 then
+              join (pom l) (a, b) r
+            else if c > 0 then
+              solver str x r
             else r
 
 (** Sprawdza czy set s jest pusty  *)
@@ -125,18 +133,18 @@ let rec add_one cmp (x, y) = function
           in
             bal nl k r
         else if c = -1 then
-          let nl = solver "left" k l
+          let nl = solver "left" x l
           in
-            bal nl (sum (x, y) k) r
+            join nl (sum (x, y) k) r
         else if c = 0 then
-          let nl = solver "left" k l
-          and nr = solver "right" k r
+          let nl = solver "left" x l
+          and nr = solver "right" y r
           in
-            bal nl (x, y) nr
+            join nl (x, y) nr
         else if c = 1 then
-          let nr = solver "right" k r
+          let nr = solver "right" x r
           in
-            bal l (sum (x, y) k) nr
+            join l (sum (x, y) k) nr
         else
           let nr = add_one cmp (x, y) r
           in
@@ -168,16 +176,6 @@ let elements s = 42
 (** Zwraca liczbę elementów setu s które są mniejsze lub równe n
     Dla liczby większej od max_int wynikiem jest max_int    *)
 let below n s = 42
-
-(** Złącza sety l i r dodając do nich przedział v  *)
-let rec join cmp l v r =
-  match (l, r) with
-    (Empty, _) -> add_one cmp v r
-  | (_, Empty) -> add_one cmp v l
-  | (Node(ll, lv, lr, lh), Node(rl, rv, rr, rh)) ->
-      if lh > rh + 2 then bal ll lv (join cmp lr v r) else
-      if rh > lh + 2 then bal (join cmp l v rl) rv rr else
-      make l v r
 
 (** Zwraca trójkę (l, p, r) w której l jest setem elementów setu s mniejszych
     od x, r jest setem elementów setu s większych od x, p jest równe false jeśli
