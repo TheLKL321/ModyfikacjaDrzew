@@ -29,6 +29,15 @@ let iCompare (a, b) (c, d) =
   else if a >= c && b > d then 1
   else 42
 
+(** Zwraca:
+    -1 jeśli x < a
+     0 jeśli a <= x <= b
+     1 jeśli x > b  *)
+let nCompare x (a, b) =
+  if x < a then -1
+  else if x > b then 1
+  else 0
+
 (** Sprawdza czy dany przedział zawiera liczbę x  *)
 let zawiera (a, b) x =
   x >= a && x <= b
@@ -160,9 +169,32 @@ let elements s = 42
     Dla liczby większej od max_int wynikiem jest max_int    *)
 let below n s = 42
 
+(** Złącza sety l i r dodając do nich przedział v  *)
+let rec join cmp l v r =
+  match (l, r) with
+    (Empty, _) -> add_one cmp v r
+  | (_, Empty) -> add_one cmp v l
+  | (Node(ll, lv, lr, lh), Node(rl, rv, rr, rh)) ->
+      if lh > rh + 2 then bal ll lv (join cmp lr v r) else
+      if rh > lh + 2 then bal (join cmp l v rl) rv rr else
+      make l v r
+
 (** Zwraca trójkę (l, p, r) w której l jest setem elementów setu s mniejszych
     od x, r jest setem elementów setu s większych od x, p jest równe false jeśli
     s nie zawiera elementu równego x, true jeśli zawiera *)
-let split x s = 42
+let split x { _ ; set = set } =
+  let rec loop x = function
+      Empty ->
+        (Empty, false, Empty)
+    | Node (l, v, r, _) ->
+        let c = nCompare x v in
+        if c = 0 then (l, true, r)
+        else if c < 0 then
+          let (ll, pres, rl) = loop x l in (ll, pres, join cmp rl v r)
+        else
+          let (lr, pres, rr) = loop x r in (join cmp l v lr, pres, rr)
+  in
+  let setl, pres, setr = loop x set in
+  { cmp = cmp; set = setl }, pres, { cmp = cmp; set = setr }
 
 ;;
