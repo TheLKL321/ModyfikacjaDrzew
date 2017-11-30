@@ -158,7 +158,18 @@ let add (x, y) { cmp = cmp; set = set } =
 
 (** Zwraca set będący wynikiem usunięcia z setu s elementów przedziału (x, y)
     x <= y    *)
-let remove (x, y) s = 42
+let remove (x, y) { cmp = cmp; set = set } =
+  let rec loop = function
+    | Node (l, (a, b), r, _) ->
+        let c = cmp (x, y) k in
+        if c = 42 then join (add_one cmp (a, x - 1) l) (y + 1, b) r
+        else if c = -2 then join (loop l) (a, b) r
+        else if c = -1 then join (loop l) (y + 1, b) r
+        else if c = 1 then join (loop r) (a, x - 1) l
+        else if c = 2 then join l (a, b) (loop r)
+        else merge (remove (x, y) l) (remove (x, y) r)
+    | Empty -> Empty in
+  { cmp = cmp; set = loop set }
 
 (** Sprawdza czy set s zawiera element x  *)
 let mem x s = 42
