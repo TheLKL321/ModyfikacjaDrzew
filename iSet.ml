@@ -59,7 +59,7 @@ let rec join cmp l v r =
     pozostały rozłączne *)
 let solver str x t =
   let rec pom = function
-    | Empty ->
+    | Empty -> Empty
     | Node (l, (a, b), r, h) ->
         if str = "left" then
           let c = nCompare x (a, b + 1)
@@ -78,6 +78,7 @@ let solver str x t =
             else if c > 0 then
               solver str x r
             else r
+  in pom t
 
 (** Sprawdza czy set s jest pusty  *)
 let is_empty s =
@@ -234,9 +235,10 @@ let iSize (a, b) = b - a + 1
 let below x s =
   let (lower, ifIncludes, _) = split x s
   in
-    let pom ak = function
+    let rec pom = function
       | Empty -> 0
-      | Node(l, k, r, _) -> (pom ak l) + (pom ak r) + (iSize k)
+      | Node(l, k, r, _) -> (pom l) + (pom r) + (iSize k)
+    in pom
 
 (** Zwraca trójkę (l, p, r) w której l jest setem elementów setu s mniejszych
     od x, r jest setem elementów setu s większych od x, p jest równe false jeśli
