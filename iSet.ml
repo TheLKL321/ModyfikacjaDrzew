@@ -45,43 +45,8 @@ let zawiera (a, b) x =
 (** Zwraca pusty set  *)
 let empty = { cmp = iCompare; set = Empty }
 
-(** Złącza sety l i r dodając do nich przedział v  *)
-let rec join cmp l v r =
-  match (l, r) with
-    (Empty, _) -> addOne cmp v r
-  | (_, Empty) -> addOne cmp v l
-  | (Node(ll, lv, lr, lh), Node(rl, rv, rr, rh)) ->
-      if lh > rh + 2 then bal ll lv (join cmp lr v r) else
-      if rh > lh + 2 then bal (join cmp l v rl) rv rr else
-      make l v r
-
-(** Usuwa z drzewa odpowiednie przedziały tak, aby pozostałe przedziały
-    pozostały rozłączne *)
-let solver str x t =
-  let rec pom = function
-    | Empty -> Empty
-    | Node (l, (a, b), r, h) ->
-        if str = "left" then
-          let c = nCompare x (a, b + 1)
-          in
-            if c < 0 then
-              solver str x l
-            else if c > 0 then
-              join l (a, b) (pom r)
-            else
-              r
-        else
-          let c = nCompare x (a - 1, b)
-          in
-            if c < 0 then
-              join (pom l) (a, b) r
-            else if c > 0 then
-              solver str x r
-            else r
-  in pom t
-
 (** Sprawdza czy set s jest pusty  *)
-let is_empty s =
+let isEmpty s =
   s.set = Empty
 
 (** Zwraca sumę dwóch przediałów  *)
@@ -91,7 +56,7 @@ let sum (a, b) (c, d) = (min a c, max b d)
 let height = function
   | Node (_, _, _, h) -> h
   | Empty -> 0
-
+  
 (** Złącza poddrzewa l i r podłączając je do nowego korzenia o wartości k  *)
 let make l k r =
   Node (l, k, r, max (height l) (height r) + 1)
@@ -122,8 +87,43 @@ let bal l k r =
     | Empty -> assert false
   else Node (l, k, r, max hl hr + 1)
 
+(** Złącza sety l i r dodając do nich przedział v  *)
+let rec join cmp l v r =
+  match (l, r) with
+    (Empty, _) -> addOne cmp v r
+  | (_, Empty) -> addOne cmp v l
+  | (Node(ll, lv, lr, lh), Node(rl, rv, rr, rh)) ->
+      if lh > rh + 2 then bal ll lv (join cmp lr v r) else
+      if rh > lh + 2 then bal (join cmp l v rl) rv rr else
+      make l v r
+
+(** Usuwa z drzewa odpowiednie przedziały tak, aby pozostałe przedziały
+    pozostały rozłączne *)
+and solver str x t =
+  let rec pom = function
+    | Empty -> Empty
+    | Node (l, (a, b), r, h) ->
+        if str = "left" then
+          let c = nCompare x (a, b + 1)
+          in
+            if c < 0 then
+              solver str x l
+            else if c > 0 then
+              join l (a, b) (pom r)
+            else
+              r
+        else
+          let c = nCompare x (a - 1, b)
+          in
+            if c < 0 then
+              join (pom l) (a, b) r
+            else if c > 0 then
+              solver str x r
+            else r
+  in pom t
+
 (** Używana przez add do dodawania (x, y) do danego setu  *)
-let rec addOne cmp (x, y) = function
+and addOne cmp (x, y) = function
   | Node (l, k, r, h) ->
       let c = cmp (x, y) k
       in
