@@ -48,8 +48,8 @@ let empty = { cmp = iCompare; set = Empty }
 (** Złącza sety l i r dodając do nich przedział v  *)
 let rec join cmp l v r =
   match (l, r) with
-    (Empty, _) -> add_one cmp v r
-  | (_, Empty) -> add_one cmp v l
+    (Empty, _) -> addOne cmp v r
+  | (_, Empty) -> addOne cmp v l
   | (Node(ll, lv, lr, lh), Node(rl, rv, rr, rh)) ->
       if lh > rh + 2 then bal ll lv (join cmp lr v r) else
       if rh > lh + 2 then bal (join cmp l v rl) rv rr else
@@ -122,14 +122,14 @@ let bal l k r =
   else Node (l, k, r, max hl hr + 1)
 
 (** Używana przez add do dodawania (x, y) do danego setu  *)
-let rec add_one cmp (x, y) = function
+let rec addOne cmp (x, y) = function
   | Node (l, k, r, h) ->
       let c = cmp (x, y) k
       in
         if c = 42 then
           Node (l, k, r, h)
         else if c = -2 then
-          let nl = add_one cmp (x, y) l
+          let nl = addOne cmp (x, y) l
           in
             bal nl k r
         else if c = -1 then
@@ -146,7 +146,7 @@ let rec add_one cmp (x, y) = function
           in
             join l (sum (x, y) k) nr
         else
-          let nr = add_one cmp (x, y) r
+          let nr = addOne cmp (x, y) r
           in
             bal l k nr
   | Empty -> Node (Empty, (x, y), Empty, 1)
@@ -154,19 +154,19 @@ let rec add_one cmp (x, y) = function
 (** Zwraca set będący wynikiem dodania elementów przedziału (x, y) do setu s
     x <= y    *)
 let add (x, y) { cmp = cmp; set = set } =
-  { cmp = cmp; set = add_one cmp (x, y) set }
+  { cmp = cmp; set = addOne cmp (x, y) set }
 
 (** Zwraca najmniejszy element w drzewie  *)
-let rec min_elt = function
+let rec minElt = function
   | Node (Empty, k, _, _) -> k
-  | Node (l, _, _, _) -> min_elt l
+  | Node (l, _, _, _) -> minElt l
   | Empty -> raise Not_found
 
 (** Zwraca drzewo bez jego najmniejszego elementu  *)
-let rec remove_min_elt = function
+let rec removeMinElt = function
   | Node (Empty, _, r, _) -> r
-  | Node (l, k, r, _) -> bal (remove_min_elt l) k r
-  | Empty -> invalid_arg "PSet.remove_min_elt"
+  | Node (l, k, r, _) -> bal (removeMinElt l) k r
+  | Empty -> invalid_arg "ISet.removeMinElt"
 
 (** Złącza ze sobą drzewa t1 i t2  *)
 let merge t1 t2 =
@@ -174,8 +174,8 @@ let merge t1 t2 =
   | Empty, _ -> t2
   | _, Empty -> t1
   | _ ->
-      let k = min_elt t2 in
-      bal t1 k (remove_min_elt t2)
+      let k = minElt t2 in
+      bal t1 k (removeMinElt t2)
 
 (** Zwraca set będący wynikiem usunięcia z setu s elementów przedziału (x, y)
     x <= y    *)
@@ -183,7 +183,7 @@ let remove (x, y) { cmp = cmp; set = set } =
   let rec loop = function
     | Node (l, (a, b), r, _) ->
         let c = cmp (x, y) k in
-        if c = 42 then join (add_one cmp (a, x - 1) l) (y + 1, b) r
+        if c = 42 then join (addOne cmp (a, x - 1) l) (y + 1, b) r
         else if c = -2 then join (loop l) (a, b) r
         else if c = -1 then join (loop l) (y + 1, b) r
         else if c = 1 then join (loop r) (a, x - 1) l
@@ -193,21 +193,50 @@ let remove (x, y) { cmp = cmp; set = set } =
   { cmp = cmp; set = loop set }
 
 (** Sprawdza czy set s zawiera element x  *)
-let mem x s = 42
+let mem x { set = set } =
+  let rec loop = function
+    | Node (l, k, r, _) ->
+        let c = nCompare x k in
+        c = 0 || loop (if c < 0 then l else r)
+    | Empty -> false in
+  loop set
 
 (** Iteruje po secie w rosnącej kolejności  *)
-let iter f s = 42
+let iter f { set = set } =
+  let rec loop = function
+    | Empty -> ()
+    | Node (l, k, r, _) -> loop l; f k; loop r in
+  loop set
 
 (** Oblicza wartość (f xN ... (f x2 (f x1 a))...) gdzie x1, ..., xN to kolejne
     przedziały setu s ułożone rosnąco   *)
-let fold f s a = 42
+
+let fold f { set = set } acc =
+  let rec loop acc = function
+    | Empty -> acc
+    | Node (l, k, r, _) ->
+          loop (f k (loop acc l)) r in
+  loop acc set
+
 
 (** Zwraca listę wszystkich przedziałów setu s w kolejności rosnącej  *)
-let elements s = 42
+let elements { set = set } =
+  let rec loop acc = function
+      Empty -> acc
+    | Node(l, k, r, _) -> loop (k :: loop acc r) l in
+  loop [] set
 
-(** Zwraca liczbę elementów setu s które są mniejsze lub równe n
+(** Zwraca liczbę elementów w przedziale  *)
+let iSize (a, b) = b - a + 1
+
+(** Zwraca liczbę elementów setu s które są mniejsze lub równe x
     Dla liczby większej od max_int wynikiem jest max_int    *)
-let below n s = 42
+let below x s =
+  let (lower, ifIncludes, _) = split x s
+  in
+    let pom ak = function
+      | Empty -> 0
+      | Node(l, k, r, _) -> (pom ak l) + (pom ak r) + (iSize k)
 
 (** Zwraca trójkę (l, p, r) w której l jest setem elementów setu s mniejszych
     od x, r jest setem elementów setu s większych od x, p jest równe false jeśli
@@ -219,7 +248,7 @@ let split x { cmp = cmp ; set = set } =
     | Node (l, (a, b), r, _) ->
         let c = nCompare x (a, b) in
         if c = 0 then
-          (add_one cmp (a, x - 1) l, true, add_one cmp (x + 1, b) r)
+          (addOne cmp (a, x - 1) l, true, addOne cmp (x + 1, b) r)
         else if c < 0 then
           let (ll, pres, rl) = loop x l in (ll, pres, join cmp rl (a, b) r)
         else
