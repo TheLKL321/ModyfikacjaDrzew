@@ -29,6 +29,15 @@ let iCompare (a, b) (c, d) =
   else if a >= c && b > d then 1
   else 42
 
+(** Zwraca:
+    -1 jeśli x < a
+     0 jeśli a <= x <= b
+     1 jeśli x > b  *)
+let nCompare x (a, b) =
+  if x < a then -1
+  else if x > b then 1
+  else 0
+
 (** Sprawdza czy dany przedział zawiera liczbę x  *)
 let zawiera (a, b) x =
   x >= a && x <= b
@@ -36,30 +45,38 @@ let zawiera (a, b) x =
 (** Zwraca pusty set  *)
 let empty = { cmp = iCompare; set = Empty }
 
-(** Szuka przedziału w drzewie t, będącym poddrzewem ze strony str
-    (lewej/prawer) który nachodzi na przedział k. Gdy taki znajdzie, dodaje go
-    do korzenia, a jego rozłączne poddrzewa dołącza do jego ojca *)
-let solver str (c, d) t =
+(** Złącza sety l i r dodając do nich przedział v  *)
+let rec join cmp l v r =
+  match (l, r) with
+    (Empty, _) -> add_one cmp v r
+  | (_, Empty) -> add_one cmp v l
+  | (Node(ll, lv, lr, lh), Node(rl, rv, rr, rh)) ->
+      if lh > rh + 2 then bal ll lv (join cmp lr v r) else
+      if rh > lh + 2 then bal (join cmp l v rl) rv rr else
+      make l v r
+
+(** Usuwa z drzewa odpowiednie przedziały tak, aby pozostałe przedziały
+    pozostały rozłączne *)
+let solver str x t =
   let rec pom = function
     | Empty ->
     | Node (l, (a, b), r, h) ->
-        let c = iCompare (a, b) (c, d)
-        in
-          if str = "left"
-            if c = -2 then
-              let sr = solver str (c, d) r
-              in
-                make l (a, b) sr
-            else if c = -1 then
-              Node (l, (c, a - 1), Empty, height l)
-            else l
-          else
-            if c = 2 then
-              let sl = solver str (c, d) l
-              in
-                make sl (a, b) r
-            else if c = 1 then
-              Node (Empty, (c, a - 1), r, height r)
+        if str = "left" then
+          let c = nCompare x (a, b + 1)
+          in
+            if c < 0 then
+              solver str x l
+            else if c > 0 then
+              join l (a, b) (pom r)
+            else
+              r
+        else
+          let c = nCompare x (a - 1, b)
+          in
+            if c < 0 then
+              join (pom l) (a, b) r
+            else if c > 0 then
+              solver str x r
             else r
 
 (** Sprawdza czy set s jest pusty  *)
@@ -116,18 +133,18 @@ let rec add_one cmp (x, y) = function
           in
             bal nl k r
         else if c = -1 then
-          let nl = solver "left" k l
+          let nl = solver "left" x l
           in
-            bal nl (sum (x, y) k) r
+            join nl (sum (x, y) k) r
         else if c = 0 then
-          let nl = solver "left" k l
-          and nr = solver "right" k r
+          let nl = solver "left" x l
+          and nr = solver "right" y r
           in
-            bal nl (x, y) nr
+            join nl (x, y) nr
         else if c = 1 then
-          let nr = solver "right" k r
+          let nr = solver "right" x r
           in
-            bal l (sum (x, y) k) nr
+            join l (sum (x, y) k) nr
         else
           let nr = add_one cmp (x, y) r
           in
@@ -139,9 +156,41 @@ let rec add_one cmp (x, y) = function
 let add (x, y) { cmp = cmp; set = set } =
   { cmp = cmp; set = add_one cmp (x, y) set }
 
+(** Zwraca najmniejszy element w drzewie  *)
+let rec min_elt = function
+  | Node (Empty, k, _, _) -> k
+  | Node (l, _, _, _) -> min_elt l
+  | Empty -> raise Not_found
+
+(** Zwraca drzewo bez jego najmniejszego elementu  *)
+let rec remove_min_elt = function
+  | Node (Empty, _, r, _) -> r
+  | Node (l, k, r, _) -> bal (remove_min_elt l) k r
+  | Empty -> invalid_arg "PSet.remove_min_elt"
+
+(** Złącza ze sobą drzewa t1 i t2  *)
+let merge t1 t2 =
+  match t1, t2 with
+  | Empty, _ -> t2
+  | _, Empty -> t1
+  | _ ->
+      let k = min_elt t2 in
+      bal t1 k (remove_min_elt t2)
+
 (** Zwraca set będący wynikiem usunięcia z setu s elementów przedziału (x, y)
     x <= y    *)
-let remove (x, y) s = 42
+let remove (x, y) { cmp = cmp; set = set } =
+  let rec loop = function
+    | Node (l, (a, b), r, _) ->
+        let c = cmp (x, y) k in
+        if c = 42 then join (add_one cmp (a, x - 1) l) (y + 1, b) r
+        else if c = -2 then join (loop l) (a, b) r
+        else if c = -1 then join (loop l) (y + 1, b) r
+        else if c = 1 then join (loop r) (a, x - 1) l
+        else if c = 2 then join l (a, b) (loop r)
+        else merge (remove (x, y) l) (remove (x, y) r)
+    | Empty -> Empty in
+  { cmp = cmp; set = loop set }
 
 (** Sprawdza czy set s zawiera element x  *)
 let mem x s = 42
@@ -163,6 +212,20 @@ let below n s = 42
 (** Zwraca trójkę (l, p, r) w której l jest setem elementów setu s mniejszych
     od x, r jest setem elementów setu s większych od x, p jest równe false jeśli
     s nie zawiera elementu równego x, true jeśli zawiera *)
-let split x s = 42
+let split x { cmp = cmp ; set = set } =
+  let rec loop x = function
+      Empty ->
+        (Empty, false, Empty)
+    | Node (l, (a, b), r, _) ->
+        let c = nCompare x (a, b) in
+        if c = 0 then
+          (add_one cmp (a, x - 1) l, true, add_one cmp (x + 1, b) r)
+        else if c < 0 then
+          let (ll, pres, rl) = loop x l in (ll, pres, join cmp rl (a, b) r)
+        else
+          let (lr, pres, rr) = loop x r in (join cmp l (a, b) lr, pres, rr)
+  in
+  let (setl, pres, setr) = loop x set in
+  { cmp = cmp; set = setl }, pres, { cmp = cmp; set = setr }
 
 ;;
