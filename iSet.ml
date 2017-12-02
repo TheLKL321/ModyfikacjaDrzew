@@ -56,7 +56,7 @@ let sum (a, b) (c, d) = (min a c, max b d)
 let height = function
   | Node (_, _, _, h) -> h
   | Empty -> 0
-  
+
 (** Złącza poddrzewa l i r podłączając je do nowego korzenia o wartości k  *)
 let make l k r =
   Node (l, k, r, max (height l) (height r) + 1)
@@ -67,6 +67,7 @@ let bal l k r =
   let hr = height r in
   if hl > hr + 2 then
     match l with
+    | Empty -> assert false
     | Node (ll, lk, lr, _) ->
         if height ll >= height lr then make ll lk (make lr k r)
         else
@@ -74,9 +75,9 @@ let bal l k r =
           | Node (lrl, lrk, lrr, _) ->
               make (make ll lk lrl) lrk (make lrr k r)
           | Empty -> assert false
-    | Empty -> assert false
   else if hr > hl + 2 then
     match r with
+    | Empty -> assert false
     | Node (rl, rk, rr, _) ->
         if height rr >= height rl then make (make l k rl) rk rr
         else
@@ -84,7 +85,6 @@ let bal l k r =
           | Node (rll, rlk, rlr, _) ->
               make (make l k rll) rlk (make rlr rk rr)
           | Empty -> assert false
-    | Empty -> assert false
   else Node (l, k, r, max hl hr + 1)
 
 (** Złącza sety l i r dodając do nich przedział v  *)
@@ -109,14 +109,14 @@ and solver str x t =
             if c < 0 then
               solver str x l
             else if c > 0 then
-              join l (a, b) (pom r)
+              join iCompare l (a, b) (pom r)
             else
               r
         else
           let c = nCompare x (a - 1, b)
           in
             if c < 0 then
-              join (pom l) (a, b) r
+              join iCompare (pom l) (a, b) r
             else if c > 0 then
               solver str x r
             else r
@@ -136,16 +136,16 @@ and addOne cmp (x, y) = function
         else if c = -1 then
           let nl = solver "left" x l
           in
-            join nl (sum (x, y) k) r
+            join iCompare nl (sum (x, y) k) r
         else if c = 0 then
           let nl = solver "left" x l
           and nr = solver "right" y r
           in
-            join nl (x, y) nr
+            join iCompare nl (x, y) nr
         else if c = 1 then
           let nr = solver "right" x r
           in
-            join l (sum (x, y) k) nr
+            join iCompare l (sum (x, y) k) nr
         else
           let nr = addOne cmp (x, y) r
           in
@@ -183,13 +183,13 @@ let merge t1 t2 =
 let remove (x, y) { cmp = cmp; set = set } =
   let rec loop = function
     | Node (l, (a, b), r, _) ->
-        let c = cmp (x, y) k in
-        if c = 42 then join (addOne cmp (a, x - 1) l) (y + 1, b) r
-        else if c = -2 then join (loop l) (a, b) r
-        else if c = -1 then join (loop l) (y + 1, b) r
-        else if c = 1 then join (loop r) (a, x - 1) l
-        else if c = 2 then join l (a, b) (loop r)
-        else merge (remove (x, y) l) (remove (x, y) r)
+        let c = cmp (x, y) (a, b) in
+        if c = 42 then join cmp (addOne cmp (a, x - 1) l) (y + 1, b) r
+        else if c = -2 then join cmp (loop l) (a, b) r
+        else if c = -1 then join cmp (loop l) (y + 1, b) r
+        else if c = 1 then join cmp (loop r) (a, x - 1) l
+        else if c = 2 then join cmp l (a, b) (loop r)
+        else merge (loop l) (loop r)
     | Empty -> Empty in
   { cmp = cmp; set = loop set }
 
@@ -230,16 +230,6 @@ let elements { set = set } =
 (** Zwraca liczbę elementów w przedziale  *)
 let iSize (a, b) = b - a + 1
 
-(** Zwraca liczbę elementów setu s które są mniejsze lub równe x
-    Dla liczby większej od max_int wynikiem jest max_int    *)
-let below x s =
-  let (lower, ifIncludes, _) = split x s
-  in
-    let rec pom = function
-      | Empty -> 0
-      | Node(l, k, r, _) -> (pom l) + (pom r) + (iSize k)
-    in pom
-
 (** Zwraca trójkę (l, p, r) w której l jest setem elementów setu s mniejszych
     od x, r jest setem elementów setu s większych od x, p jest równe false jeśli
     s nie zawiera elementu równego x, true jeśli zawiera *)
@@ -258,5 +248,19 @@ let split x { cmp = cmp ; set = set } =
   in
   let (setl, pres, setr) = loop x set in
   { cmp = cmp; set = setl }, pres, { cmp = cmp; set = setr }
+
+(** Zwraca liczbę elementów setu s które są mniejsze lub równe x
+    Dla liczby większej od max_int wynikiem jest max_int    *)
+let below x s =
+  let (lower, ifIncludes, _) = split x s
+  in
+    let rec pom = function
+      | Empty -> 0
+      | Node(l, k, r, _) -> (pom l) + (pom r) + (iSize k)
+    in
+      if ifIncludes then
+        pom (addOne iCompare (x, x) lower.set)
+      else
+        pom lower.set
 
 ;;
