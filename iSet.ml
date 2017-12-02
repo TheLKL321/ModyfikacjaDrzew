@@ -21,6 +21,7 @@ type t =
      1 jeśli (a, b) i (c, d) nachodzą na siebie i a > c i b > d
      2 jeśli (a, b) > (c, d)
      42 jeśli (a, b) zawiera się w (c, d) *)
+     (** TODO: optimize  *)
 let iCompare (a, b) (c, d) =
   if b < c - 1 then -2
   else if a < c && b <= d then -1
@@ -46,7 +47,7 @@ let zawiera (a, b) x =
 let empty = { cmp = iCompare; set = Empty }
 
 (** Sprawdza czy set s jest pusty  *)
-let isEmpty s =
+let is_empty s =
   s.set = Empty
 
 (** Zwraca sumę dwóch przediałów  *)
@@ -90,7 +91,7 @@ let bal l k r =
 (** Złącza sety l i r dodając do nich przedział v  *)
 let rec join cmp l v r =
   match (l, r) with
-    (Empty, _) -> addOne cmp v r
+  | (Empty, _) -> addOne cmp v r
   | (_, Empty) -> addOne cmp v l
   | (Node(ll, lv, lr, lh), Node(rl, rv, rr, rh)) ->
       if lh > rh + 2 then bal ll lv (join cmp lr v r) else
@@ -186,8 +187,12 @@ let remove (x, y) { cmp = cmp; set = set } =
         let c = cmp (x, y) (a, b) in
         if c = 42 then join cmp (addOne cmp (a, x - 1) l) (y + 1, b) r
         else if c = -2 then join cmp (loop l) (a, b) r
-        else if c = -1 then join cmp (loop l) (y + 1, b) r
-        else if c = 1 then join cmp (loop r) (a, x - 1) l
+        else if c = -1 then
+          if y + 1 > b then Empty
+          else join cmp (loop l) (y + 1, b) r
+        else if c = 1 then
+          if a > x - 1 then Empty
+          else join cmp (loop r) (a, x - 1) l
         else if c = 2 then join cmp l (a, b) (loop r)
         else merge (loop l) (loop r)
     | Empty -> Empty in
@@ -264,3 +269,9 @@ let below x s =
         pom lower.set
 
 ;;
+
+(**
+#use "iSet.ml";;
+#use "iSet_test.ml";;
+#use "iSet_random_test.ml";;
+  *)
