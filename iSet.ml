@@ -188,11 +188,11 @@ let remove (x, y) { cmp = cmp; set = set } =
         if c = 42 then join cmp (addOne cmp (a, x - 1) l) (y + 1, b) r
         else if c = -2 then join cmp (loop l) (a, b) r
         else if c = -1 then
-          if y + 1 > b then Empty
+          if y + 1 > b then merge (loop l) r
           else join cmp (loop l) (y + 1, b) r
         else if c = 1 then
-          if a > x - 1 then Empty
-          else join cmp (loop r) (a, x - 1) l
+          if a > x - 1 then merge l (loop r)
+          else join cmp l (a, x - 1) (loop r)
         else if c = 2 then join cmp l (a, b) (loop r)
         else merge (loop l) (loop r)
     | Empty -> Empty in
@@ -233,7 +233,9 @@ let elements { set = set } =
   loop [] set
 
 (** Zwraca liczbę elementów w przedziale  *)
-let iSize (a, b) = b - a + 1
+let iSize (a, b) =
+  if b = max_int || a = min_int then max_int
+  else b - a + 1
 
 (** Zwraca trójkę (l, p, r) w której l jest setem elementów setu s mniejszych
     od x, r jest setem elementów setu s większych od x, p jest równe false jeśli
@@ -261,7 +263,14 @@ let below x s =
   in
     let rec pom = function
       | Empty -> 0
-      | Node(l, k, r, _) -> (pom l) + (pom r) + (iSize k)
+      | Node(l, k, r, _) ->
+          let sizek = iSize k
+          and sizel = pom l
+          and sizer = pom r
+          and summed = sizel + sizer + size
+          in
+            if summed < sizek || summed < sizel || summed < sizer then max_int
+            else summed
     in
       if ifIncludes then
         pom (addOne iCompare (x, x) lower.set)
