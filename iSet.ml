@@ -118,7 +118,7 @@ let merge t1 t2 =
 
 (** Założenia: drzewa l i r są wybalansowane
     Złącza sety l i r dodając do nich przedział v
-    Wynikiem jest wybalansowane drzewo *)
+    Wynikiem jest wybalansowane drzewo  *)
 let rec join cmp l v r =
   match (l, r) with
   | (Empty, _) -> addOne cmp v r
@@ -205,7 +205,8 @@ let iter f { set = set } =
 
 (** Założenia: f: (int * int) -> 'a -> 'a
     Wynikiem jest wartość (f xN ... (f x2 (f x1 a))...) gdzie x1, ..., xN to
-    kolejne przedziały setu s ułożone rosnąco  *)
+    kolejne przedziały setu s ułożone rosnąco
+    Niezmienniki: acc = f k acc  *)
 let fold f { set = set } acc =
   let rec loop acc = function
     | Empty -> acc
@@ -214,7 +215,8 @@ let fold f { set = set } acc =
   in loop acc set
 
 
-(** Zwraca listę wszystkich przedziałów setu s w kolejności rosnącej  *)
+(** Zwraca listę wszystkich przedziałów setu s w kolejności rosnącej
+    Niezmienniki: acc = k :: acc  *)
 let elements { set = set } =
   let rec loop acc = function
       Empty -> acc
