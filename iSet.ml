@@ -122,11 +122,68 @@ let rec join l v r =
       if rh > lh + 2 then bal (join l v rl) rv rr else
       make l v r
 
+(** Zwraca parę (acc, ns) gdzie acc jest sumą przedziałów drzewa s które na
+    siebie nachodzą po dodaniu elementu xy, a ns jest drzewem bez elementów
+    tych przedziałów  *)
+and solver xy s =
+  let rec loop acc = function
+    | Empty -> (acc, Empty)
+    | Node (l, k, r, _) ->
+        let c = cmp acc k
+        in
+          if c = -2 then
+            let (result, left) = loop acc l
+            in (result, join left k r)
+          else if c = -1 then
+            ((sum k acc), r)
+          else if c = 0 then
+            let (result1, left) = loop acc l
+            and (result2, right) = loop acc r
+            in (sum result1 result2, merge left right)
+          else if c = 1 then
+            ((sum k acc), l)
+          else
+            let (result, right) = loop acc r
+            in (result, join l k right)
+  in loop xy s
+
+(** Założenia: x <= y
+    Dodaje elementy przedziału (x, y) do danego drzewa
+    Wynikiem jest wybalansowane drzewo  *)
+and add (x, y) = function
+  | Node (l, k, r, h) ->
+      let c = cmp (x, y) k
+      in
+        if c = 42 then
+          Node (l, k, r, h)
+        else if c = -2 then
+          let nl = add (x, y) l
+          in
+            bal nl k r
+        else if c = -1 then
+          let (nk, nl) = solver (sum (x, y) k) l
+          in
+            join nl nk r
+        else if c = 0 then
+          let (nk1, nl) = solver (x, y) l
+          and (nk2, nr) = solver (sum (x, y) k) r
+          in
+            join nl (sum nk1 nk2) nr
+        else if c = 1 then
+          let (nk, nr) = solver (sum (x, y) k) r
+          in
+            join l nk nr
+        else
+          let nr = add (x, y) r
+          in
+            bal l k nr
+  | Empty -> Node (Empty, (x, y), Empty, 1)
+
 (** Założenia: x <= y, s to wybalansowane drzewo
     Zwraca drzewo będące wynikiem usunięcia z drzewa s wszystkich elementów
     przedziału (x, y)
     Wynikiem jest wybalansowane drzewo *)
-and remove (x, y) s =
+let remove (x, y) s =
   let rec loop = function
     | Node (l, (a, b), r, _) ->
         let c = cmp (x, y) (a, b) in
@@ -148,38 +205,6 @@ and remove (x, y) s =
         else merge (loop l) (loop r)
     | Empty -> Empty
   in loop s
-
-(** Założenia: x <= y
-    Dodaje elementy przedziału (x, y) do danego drzewa
-    Wynikiem jest wybalansowane drzewo  *)
-and add (x, y) = function
-  | Node (l, k, r, h) ->
-      let c = cmp (x, y) k
-      in
-        if c = 42 then
-          Node (l, k, r, h)
-        else if c = -2 then
-          let nl = add (x, y) l
-          in
-            bal nl k r
-        else if c = -1 then
-          let nl = remove (x, y) l
-          in
-            join nl (sum (x, y) k) r
-        else if c = 0 then
-          let nl = remove (x, y) l
-          and nr = remove (x, y) r
-          in
-            join nl (x, y) nr
-        else if c = 1 then
-          let nr = remove (x, y) r
-          in
-            join l (sum (x, y) k) nr
-        else
-          let nr = add (x, y) r
-          in
-            bal l k nr
-  | Empty -> Node (Empty, (x, y), Empty, 1)
 
 (** Sprawdza czy drzewo s zawiera element x  *)
 let mem x s =
