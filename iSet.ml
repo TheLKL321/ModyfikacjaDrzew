@@ -3,9 +3,9 @@
     Wszystkie przedziały w drzewie są rozłączne
     Drzewo jest wybalansowane, tzn różnica wysokości dzieci każdego ojca to
     maksymalnie 2 *)
-type set =
+type t =
   | Empty
-  | Node of set * (int * int) * set * int
+  | Node of t * (int * int) * t * int
 
 (** Założenia: a <= b, c <= d
     Zwraca:
@@ -111,13 +111,13 @@ let merge t1 t2 =
 (** Założenia: drzewa l i r są wybalansowane
     Złącza sety l i r dodając do nich przedział v
     Wynikiem jest wybalansowane drzewo  *)
-let rec join cmp l v r =
+let rec join l v r =
   match (l, r) with
-  | (Empty, _) -> addOne cmp v r
-  | (_, Empty) -> addOne cmp v l
+  | (Empty, _) -> add v r
+  | (_, Empty) -> add v l
   | (Node(ll, lv, lr, lh), Node(rl, rv, rr, rh)) ->
-      if lh > rh + 2 then bal ll lv (join cmp lr v r) else
-      if rh > lh + 2 then bal (join cmp l v rl) rv rr else
+      if lh > rh + 2 then bal ll lv (join lr v r) else
+      if rh > lh + 2 then bal (join l v rl) rv rr else
       make l v r
 
 (** Założenia: x <= y, s to wybalansowane drzewo
@@ -128,15 +128,15 @@ and remove (x, y) s =
   let rec loop = function
     | Node (l, (a, b), r, _) ->
         let c = cmp (x, y) (a, b) in
-        if c = 42 then join cmp (addOne cmp (a, x - 1) l) (y + 1, b) r
-        else if c = -2 then join cmp (loop l) (a, b) r
+        if c = 42 then join (add (a, x - 1) l) (y + 1, b) r
+        else if c = -2 then join (loop l) (a, b) r
         else if c = -1 then
           if y + 1 > b then merge (loop l) r
-          else join cmp (loop l) (y + 1, b) r
+          else join (loop l) (y + 1, b) r
         else if c = 1 then
           if a > x - 1 then merge l (loop r)
-          else join cmp l (a, x - 1) (loop r)
-        else if c = 2 then join cmp l (a, b) (loop r)
+          else join l (a, x - 1) (loop r)
+        else if c = 2 then join l (a, b) (loop r)
         else merge (loop l) (loop r)
     | Empty -> Empty
   in loop s
@@ -144,39 +144,34 @@ and remove (x, y) s =
 (** Założenia: x <= y
     Dodaje elementy przedziału (x, y) do danego drzewa
     Wynikiem jest wybalansowane drzewo  *)
-and addOne cmp (x, y) = function
+and add (x, y) = function
   | Node (l, k, r, h) ->
       let c = cmp (x, y) k
       in
         if c = 42 then
           Node (l, k, r, h)
         else if c = -2 then
-          let nl = addOne cmp (x, y) l
+          let nl = add (x, y) l
           in
             bal nl k r
         else if c = -1 then
           let nl = remove (x, y) l
           in
-            join cmp nl (sum (x, y) k) r
+            join nl (sum (x, y) k) r
         else if c = 0 then
           let nl = remove (x, y) l
           and nr = remove (x, y) r
           in
-            join cmp nl (x, y) nr
+            join nl (x, y) nr
         else if c = 1 then
           let nr = remove (x, y) r
           in
-            join cmp l (sum (x, y) k) nr
+            join l (sum (x, y) k) nr
         else
-          let nr = addOne cmp (x, y) r
+          let nr = add (x, y) r
           in
             bal l k nr
   | Empty -> Node (Empty, (x, y), Empty, 1)
-
-(** Założenia: x <= y
-    Wywołuje funkcję addOne na drzewie s  *)
-let add (x, y) s =
-  addOne cmp (x, y) s
 
 (** Sprawdza czy drzewo s zawiera element x  *)
 let mem x s =
@@ -231,15 +226,15 @@ let split x s =
         let c = nCmp x (a, b) in
         if c = 0 then
           if x = a then
-            (l, true, addOne cmp (x + 1, b) r)
+            (l, true, add (x + 1, b) r)
           else if x = b then
-            (addOne cmp (a, x - 1) l, true, r)
+            (add (a, x - 1) l, true, r)
           else
-            (addOne cmp (a, x - 1) l, true, addOne cmp (x + 1, b) r)
+            (add (a, x - 1) l, true, add (x + 1, b) r)
         else if c < 0 then
-          let (ll, pres, rl) = loop x l in (ll, pres, join cmp rl (a, b) r)
+          let (ll, pres, rl) = loop x l in (ll, pres, join rl (a, b) r)
         else
-          let (lr, pres, rr) = loop x r in (join cmp l (a, b) lr, pres, rr)
+          let (lr, pres, rr) = loop x r in (join l (a, b) lr, pres, rr)
   in
     let (setl, pres, setr) = loop x s
     in setl, pres, setr
@@ -263,7 +258,7 @@ let below x s =
               else summed
     in
       if ifIncludes then
-        pom (addOne cmp (x, x) lower)
+        pom (add (x, x) lower)
       else
         pom lower
 
