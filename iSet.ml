@@ -1,3 +1,5 @@
+(** By Łukasz Zarębski  *)
+
 (** Typ drzewa BST
     Node(lewe poddrzewo, przedział, prawe poddrzewo, wysokość drzewa)
     Wszystkie przedziały w drzewie są rozłączne
