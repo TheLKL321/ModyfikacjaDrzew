@@ -248,9 +248,9 @@ let split x { cmp = cmp ; set = set } =
         let c = nCompare x (a, b) in
         if c = 0 then
           if x = a then
-            (Empty, true, addOne cmp (x + 1, b) r)
+            (l, true, addOne cmp (x + 1, b) r)
           else if x = b then
-            (addOne cmp (a, x - 1) l, true, Empty)
+            (addOne cmp (a, x - 1) l, true, r)
           else
             (addOne cmp (a, x - 1) l, true, addOne cmp (x + 1, b) r)
         else if c < 0 then
