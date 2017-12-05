@@ -130,7 +130,13 @@ and remove (x, y) s =
   let rec loop = function
     | Node (l, (a, b), r, _) ->
         let c = cmp (x, y) (a, b) in
-        if c = 42 then join (add (a, x - 1) l) (y + 1, b) r
+        if c = 42 then
+          if x = a then
+            if y = b then merge l r
+            else make l (y + 1, b) r
+          else
+            if y = b then make l (a, x - 1) r
+            else join (add (a, x - 1) l) (y + 1, b) r
         else if c = -2 then join (loop l) (a, b) r
         else if c = -1 then
           if y + 1 > b then merge (loop l) r
