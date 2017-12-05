@@ -11,7 +11,7 @@
 let debug = false
 let verbose = false
 
-module Integers =
+module Integers = 
     struct
         type t = int
         let compare = Pervasives.compare
@@ -151,4 +151,3 @@ let _ =
             | TestBelow -> test_below ()
         in check_correctness ()
     done
-
