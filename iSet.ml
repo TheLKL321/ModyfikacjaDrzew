@@ -1,19 +1,11 @@
 (** Typ drzewa BST
     Node(lewe poddrzewo, przedział, prawe poddrzewo, wysokość drzewa)
-    Wszystkie przedziały w drzewie są rozłączne *)
+    Wszystkie przedziały w drzewie są rozłączne
+    Drzewo jest wybalansowane, tzn różnica wysokości dzieci każdego ojca to
+    maksymalnie 2 *)
 type set =
   | Empty
   | Node of set * (int * int) * set * int
-
-(** Typ setu, zawierający funkcję iCompare porównującą dwa przedziały oraz
-    jedno drzewo
-    Drzewo jest wybalansowane, tzn różnica wysokości dzieci każdego ojca to
-    maksymalnie 2 *)
-type t =
-  {
-    cmp : (int * int) -> (int * int) -> int;
-    set : set;
-  }
 
 (** Założenia: a <= b, c <= d
     Zwraca:
@@ -23,7 +15,7 @@ type t =
      1 jeśli (a, b) i (c, d) nachodzą na siebie i a > c i b > d
      2 jeśli (a, b) > (c, d)
      42 jeśli (a, b) zawiera się w (c, d) *)
-let iCompare (a, b) (c, d) =
+let cmp (a, b) (c, d) =
   if b < c - 1 then -2
   else if a < c && b <= d then -1
   else if a < c then 0
@@ -36,7 +28,7 @@ let iCompare (a, b) (c, d) =
     -1 jeśli x < a
      0 jeśli a <= x <= b
      1 jeśli x > b  *)
-let nCompare x (a, b) =
+let nCmp x (a, b) =
   if x < a then -1
   else if x > b then 1
   else 0
@@ -47,11 +39,11 @@ let zawiera (a, b) x =
   x >= a && x <= b
 
 (** Zwraca pusty set  *)
-let empty = { cmp = iCompare; set = Empty }
+let empty = Empty
 
-(** Sprawdza czy set s jest pusty  *)
+(** Sprawdza czy drzewo s jest puste  *)
 let is_empty s =
-  s.set = Empty
+  s = Empty
 
 (** Założenia: a <= b, c <= d
     Zwraca sumę dwóch przediałów  *)
@@ -128,11 +120,11 @@ let rec join cmp l v r =
       if rh > lh + 2 then bal (join cmp l v rl) rv rr else
       make l v r
 
-(** Założenia: x <= y, s.set to wybalansowane drzewo
-    Zwraca set będący wynikiem usunięcia z setu s wszystkich elementów
+(** Założenia: x <= y, s to wybalansowane drzewo
+    Zwraca drzewo będące wynikiem usunięcia z drzewa s wszystkich elementów
     przedziału (x, y)
-    Wynikiem jest set z wybalansowanych drzewem *)
-and remove (x, y) { cmp = cmp; set = set } =
+    Wynikiem jest wybalansowane drzewo *)
+and remove (x, y) s =
   let rec loop = function
     | Node (l, (a, b), r, _) ->
         let c = cmp (x, y) (a, b) in
@@ -146,8 +138,8 @@ and remove (x, y) { cmp = cmp; set = set } =
           else join cmp l (a, x - 1) (loop r)
         else if c = 2 then join cmp l (a, b) (loop r)
         else merge (loop l) (loop r)
-    | Empty -> Empty in
-  { cmp = cmp; set = loop set }
+    | Empty -> Empty
+  in loop s
 
 (** Założenia: x <= y
     Dodaje elementy przedziału (x, y) do danego drzewa
@@ -163,18 +155,18 @@ and addOne cmp (x, y) = function
           in
             bal nl k r
         else if c = -1 then
-          let nl = remove (x, y) { cmp = cmp; set = l}
+          let nl = remove (x, y) l
           in
-            join cmp nl.set (sum (x, y) k) r
+            join cmp nl (sum (x, y) k) r
         else if c = 0 then
-          let nl = remove (x, y) { cmp = cmp; set = l}
-          and nr = remove (x, y) { cmp = cmp; set = r}
+          let nl = remove (x, y) l
+          and nr = remove (x, y) r
           in
-            join cmp nl.set (x, y) nr.set
+            join cmp nl (x, y) nr
         else if c = 1 then
-          let nr = remove (x, y) { cmp = cmp; set = r}
+          let nr = remove (x, y) r
           in
-            join cmp l (sum (x, y) k) nr.set
+            join cmp l (sum (x, y) k) nr
         else
           let nr = addOne cmp (x, y) r
           in
@@ -182,46 +174,44 @@ and addOne cmp (x, y) = function
   | Empty -> Node (Empty, (x, y), Empty, 1)
 
 (** Założenia: x <= y
-    Wywołuje funkcję addOne na drzewie danego setu  *)
-let add (x, y) { cmp = cmp; set = set } =
-  { cmp = cmp; set = addOne cmp (x, y) set }
+    Wywołuje funkcję addOne na drzewie s  *)
+let add (x, y) s =
+  addOne cmp (x, y) s
 
-(** Sprawdza czy dany set zawiera element x  *)
-let mem x { set = set } =
+(** Sprawdza czy drzewo s zawiera element x  *)
+let mem x s =
   let rec loop = function
     | Node (l, k, r, _) ->
-        let c = nCompare x k in
+        let c = nCmp x k in
         c = 0 || loop (if c < 0 then l else r)
     | Empty -> false
-  in loop set
+  in loop s
 
 (** Założenia: f: (int * int) -> unit()
     Wywołuje funkcję f na każdym przedziale danego setu w rosnącej kolejności *)
-let iter f { set = set } =
+let iter f s =
   let rec loop = function
     | Empty -> ()
-    | Node (l, k, r, _) -> loop l; f k; loop r in
-  loop set
+    | Node (l, k, r, _) -> loop l; f k; loop r
+  in loop s
 
 (** Założenia: f: (int * int) -> 'a -> 'a
     Wynikiem jest wartość (f xN ... (f x2 (f x1 a))...) gdzie x1, ..., xN to
-    kolejne przedziały setu s ułożone rosnąco
-    Niezmienniki: acc = f k acc  *)
-let fold f { set = set } acc =
+    kolejne przedziały drzewa s ułożone rosnąco  *)
+let fold f s acc =
   let rec loop acc = function
     | Empty -> acc
     | Node (l, k, r, _) ->
         loop (f k (loop acc l)) r
-  in loop acc set
+  in loop acc s
 
 
-(** Zwraca listę wszystkich przedziałów setu s w kolejności rosnącej
-    Niezmienniki: acc = k :: acc  *)
-let elements { set = set } =
+(** Zwraca listę wszystkich przedziałów setu s w kolejności rosnącej  *)
+let elements s =
   let rec loop acc = function
       Empty -> acc
-    | Node(l, k, r, _) -> loop (k :: loop acc r) l in
-  loop [] set
+    | Node(l, k, r, _) -> loop (k :: loop acc r) l
+  in loop [] s
 
 (** Założenia: a <= b
     Zwraca liczbę elementów w przedziale
@@ -230,16 +220,15 @@ let iSize (a, b) =
   if b = max_int && a <= 0 || a = min_int && b >= 0 then max_int
   else b - a + 1
 
-(** Zwraca trójkę (l, p, r) w której l jest setem elementów danego setu
-    mniejszych od x, r jest setem elementów danego setu większych od x, p jest
-    równe false jeśli dany set nie zawiera elementu równego x, true jeśli
-    zawiera *)
-let split x { cmp = cmp ; set = set } =
+(** Zwraca trójkę (l, p, r) w której l jest drzewem elementów drzewa s
+    mniejszych od x, r jest drzewem elementów drzewa s większych od x, p jest
+    równe false jeśli s nie zawiera elementu równego x, true jeśli zawiera *)
+let split x s =
   let rec loop x = function
     | Empty ->
         (Empty, false, Empty)
     | Node (l, (a, b), r, _) ->
-        let c = nCompare x (a, b) in
+        let c = nCmp x (a, b) in
         if c = 0 then
           if x = a then
             (l, true, addOne cmp (x + 1, b) r)
@@ -252,8 +241,8 @@ let split x { cmp = cmp ; set = set } =
         else
           let (lr, pres, rr) = loop x r in (join cmp l (a, b) lr, pres, rr)
   in
-  let (setl, pres, setr) = loop x set in
-  { cmp = cmp; set = setl }, pres, { cmp = cmp; set = setr }
+    let (setl, pres, setr) = loop x s
+    in setl, pres, setr
 
 (** Zwraca liczbę elementów drzewa s które są mniejsze lub równe x
     Dla liczby większej od max_int wynikiem jest max_int
@@ -274,9 +263,9 @@ let below x s =
               else summed
     in
       if ifIncludes then
-        pom (addOne iCompare (x, x) lower.set)
+        pom (addOne cmp (x, x) lower)
       else
-        pom lower.set
+        pom lower
 
 ;;
 
