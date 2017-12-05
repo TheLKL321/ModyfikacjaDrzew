@@ -1,6 +1,3 @@
-(** TODO: komentarze takie jakie chcą w moodle'u  *)
-(** TODO: jeśli upublicznisz repo to musisz dodać licencję LGPL, taką jak pSet  *)
-
 (** typ setu
     Node(lewe poddrzewo, przedział, prawe poddrzewo, wysokość drzewa) *)
 type set =
@@ -14,23 +11,24 @@ type t =
     set : set;
   }
 
-(** Zwraca:
+(** Założenia: a <= b, c <= d
+    Zwraca:
     -2 jeśli (a, b) < (c, d)
     -1 jeśli (a, b) i (c, d) nachodzą na siebie i a < c i b < d
      0 jeśli (a, b) i (c, d) nachodzą na siebie i a < c i b > d
      1 jeśli (a, b) i (c, d) nachodzą na siebie i a > c i b > d
      2 jeśli (a, b) > (c, d)
      42 jeśli (a, b) zawiera się w (c, d) *)
-     (** TODO: optimize  *)
 let iCompare (a, b) (c, d) =
   if b < c - 1 then -2
   else if a < c && b <= d then -1
-  else if a < c && b > d then 0
+  else if a < c then 0
   else if a > d + 1 then 2
-  else if a >= c && b > d then 1
+  else if b > d then 1
   else 42
 
-(** Zwraca:
+(** Założenia: a <= b
+    Zwraca:
     -1 jeśli x < a
      0 jeśli a <= x <= b
      1 jeśli x > b  *)
@@ -39,7 +37,8 @@ let nCompare x (a, b) =
   else if x > b then 1
   else 0
 
-(** Sprawdza czy dany przedział zawiera liczbę x  *)
+(** Założenia: a <= b
+    Sprawdza czy dany przedział zawiera liczbę x  *)
 let zawiera (a, b) x =
   x >= a && x <= b
 
@@ -50,7 +49,8 @@ let empty = { cmp = iCompare; set = Empty }
 let is_empty s =
   s.set = Empty
 
-(** Zwraca sumę dwóch przediałów  *)
+(** Założenia: a <= b, c <= d
+    Zwraca sumę dwóch przediałów  *)
 let sum (a, b) (c, d) = (min a c, max b d)
 
 (** Zwraca wysokość danego drzewa  *)
@@ -62,7 +62,9 @@ let height = function
 let make l k r =
   Node (l, k, r, max (height l) (height r) + 1)
 
-(** Wykonuje rotacje aby drzewo pozostało wybalansowane  *)
+(** Założenia: Różnica wysokości l i r jest <= 1, oba drzewa są wybalansowane
+    Wykonuje rotacje aby drzewo pozostało wybalansowane
+    Wynikiem jest wybalansowane drzewo *)
 let bal l k r =
   let hl = height l in
   let hr = height r in
@@ -88,76 +90,6 @@ let bal l k r =
           | Empty -> assert false
   else Node (l, k, r, max hl hr + 1)
 
-(** Złącza sety l i r dodając do nich przedział v  *)
-let rec join cmp l v r =
-  match (l, r) with
-  | (Empty, _) -> addOne cmp v r
-  | (_, Empty) -> addOne cmp v l
-  | (Node(ll, lv, lr, lh), Node(rl, rv, rr, rh)) ->
-      if lh > rh + 2 then bal ll lv (join cmp lr v r) else
-      if rh > lh + 2 then bal (join cmp l v rl) rv rr else
-      make l v r
-
-(** Usuwa z drzewa odpowiednie przedziały tak, aby pozostałe przedziały
-    pozostały rozłączne *)
-and solver str x t =
-  let rec pom = function
-    | Empty -> Empty
-    | Node (l, (a, b), r, h) ->
-        if str = "left" then
-          let c = nCompare x (a, b + 1)
-          in
-            if c < 0 then
-              solver str x l
-            else if c > 0 then
-              join iCompare l (a, b) (pom r)
-            else
-              r
-        else
-          let c = nCompare x (a - 1, b)
-          in
-            if c < 0 then
-              join iCompare (pom l) (a, b) r
-            else if c > 0 then
-              solver str x r
-            else r
-  in pom t
-
-(** Używana przez add do dodawania (x, y) do danego setu  *)
-and addOne cmp (x, y) = function
-  | Node (l, k, r, h) ->
-      let c = cmp (x, y) k
-      in
-        if c = 42 then
-          Node (l, k, r, h)
-        else if c = -2 then
-          let nl = addOne cmp (x, y) l
-          in
-            bal nl k r
-        else if c = -1 then
-          let nl = solver "left" x l
-          in
-            join iCompare nl (sum (x, y) k) r
-        else if c = 0 then
-          let nl = solver "left" x l
-          and nr = solver "right" y r
-          in
-            join iCompare nl (x, y) nr
-        else if c = 1 then
-          let nr = solver "right" x r
-          in
-            join iCompare l (sum (x, y) k) nr
-        else
-          let nr = addOne cmp (x, y) r
-          in
-            bal l k nr
-  | Empty -> Node (Empty, (x, y), Empty, 1)
-
-(** Zwraca set będący wynikiem dodania elementów przedziału (x, y) do setu s
-    x <= y    *)
-let add (x, y) { cmp = cmp; set = set } =
-  { cmp = cmp; set = addOne cmp (x, y) set }
-
 (** Zwraca najmniejszy element w drzewie  *)
 let rec minElt = function
   | Node (Empty, k, _, _) -> k
@@ -179,9 +111,21 @@ let merge t1 t2 =
       let k = minElt t2 in
       bal t1 k (removeMinElt t2)
 
+(** Założenia: drzewa l i r są wybalansowane
+    Złącza sety l i r dodając do nich przedział v
+    Wynikiem jest wybalansowane drzewo *)
+let rec join cmp l v r =
+  match (l, r) with
+  | (Empty, _) -> addOne cmp v r
+  | (_, Empty) -> addOne cmp v l
+  | (Node(ll, lv, lr, lh), Node(rl, rv, rr, rh)) ->
+      if lh > rh + 2 then bal ll lv (join cmp lr v r) else
+      if rh > lh + 2 then bal (join cmp l v rl) rv rr else
+      make l v r
+
 (** Zwraca set będący wynikiem usunięcia z setu s elementów przedziału (x, y)
     x <= y    *)
-let remove (x, y) { cmp = cmp; set = set } =
+and remove (x, y) { cmp = cmp; set = set } =
   let rec loop = function
     | Node (l, (a, b), r, _) ->
         let c = cmp (x, y) (a, b) in
@@ -197,6 +141,41 @@ let remove (x, y) { cmp = cmp; set = set } =
         else merge (loop l) (loop r)
     | Empty -> Empty in
   { cmp = cmp; set = loop set }
+
+(** Używana przez add do dodawania (x, y) do danego setu  *)
+and addOne cmp (x, y) = function
+  | Node (l, k, r, h) ->
+      let c = cmp (x, y) k
+      in
+        if c = 42 then
+          Node (l, k, r, h)
+        else if c = -2 then
+          let nl = addOne cmp (x, y) l
+          in
+            bal nl k r
+        else if c = -1 then
+          let nl = remove (x, y) { cmp = cmp; set = l}
+          in
+            join cmp nl.set (sum (x, y) k) r
+        else if c = 0 then
+          let nl = remove (x, y) { cmp = cmp; set = l}
+          and nr = remove (x, y) { cmp = cmp; set = r}
+          in
+            join cmp nl.set (x, y) nr.set
+        else if c = 1 then
+          let nr = remove (x, y) { cmp = cmp; set = r}
+          in
+            join cmp l (sum (x, y) k) nr.set
+        else
+          let nr = addOne cmp (x, y) r
+          in
+            bal l k nr
+  | Empty -> Node (Empty, (x, y), Empty, 1)
+
+(** Zwraca set będący wynikiem dodania elementów przedziału (x, y) do setu s
+    x <= y    *)
+let add (x, y) { cmp = cmp; set = set } =
+  { cmp = cmp; set = addOne cmp (x, y) set }
 
 (** Sprawdza czy set s zawiera element x  *)
 let mem x { set = set } =
