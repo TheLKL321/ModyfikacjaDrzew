@@ -11,7 +11,7 @@
 let debug = false
 let verbose = false
 
-module Integers = 
+module Integers =
     struct
         type t = int
         let compare = Pervasives.compare
@@ -40,7 +40,7 @@ let hi = if debug then 20 else 100000
 let range = hi - lo
 let clear_step = if debug then 10 else 0
 let intset = ref IntSet.empty
-let iset = ref ISet.empty
+let iset = ref empty
 let rnd l h = Random.int (h-l+1) + l
 let random () = Random.int range + lo
 
@@ -63,7 +63,7 @@ let print_intset set =
     print_list (IntSet.elements set)
 
 let print_iset set =
-    print_list (to_int_list (ISet.elements set))
+    print_list (to_int_list (elements set))
 
 let print_sets () =
     print_string "\nPseudoSet: "; print_intset !intset;
@@ -85,14 +85,14 @@ let get_action () : testAction =
 let test_add () : unit =
     let a, b = (random (), rnd 2 10) in
     intset := IntSet.add (a, a+b) !intset;
-    iset := ISet.add (a, a+b) !iset;
+    iset := add (a, a+b) !iset;
     Printf.printf "add (%d, %d)... " a (a+b);;
 
 let test_remove () : unit =
     let a, b = (random (), rnd 5 20) in
     Printf.printf "remove (%d, %d)... " a (a+b);
     intset := IntSet.remove (a, a+b) !intset;
-    iset := ISet.remove (a, a+b) !iset
+    iset := remove (a, a+b) !iset
 
 let test_split () : unit =
     let a = random ()
@@ -100,7 +100,7 @@ let test_split () : unit =
     let sidetxt = if side = 0 then "below" else "above" in
         Printf.printf "split %d, taking the ones %s... " a sidetxt;
         let b, c, d = IntSet.split a !intset in
-        let bb, cc, dd = ISet.split a !iset in
+        let bb, cc, dd = split a !iset in
         let t = [| b; d |] and tt = [| bb; dd |] in
         assert (c = cc);
         intset := t.(side);
@@ -109,7 +109,7 @@ let test_split () : unit =
 let test_below () : unit =
     let a = random () in
     Printf.printf "below %d... " a;
-    let test = ISet.below a !iset
+    let test = below a !iset
     and b, _, _ = IntSet.split (a+1) !intset in
     let c = S.cardinal b in
     try assert (test = c)
@@ -121,7 +121,7 @@ let test_below () : unit =
 let check_correctness () : unit =
     if verbose then print_sets ();
     let ints = IntSet.elements !intset in
-    let i = to_int_list (ISet.elements !iset) in
+    let i = to_int_list (elements !iset) in
     begin
         try assert (ints = i)
         with Assert_failure x ->
@@ -139,7 +139,7 @@ let _ =
       let () =
         if clear_step > 0 && !i mod clear_step = 0 then begin
             Printf.printf "[clear]\n";
-            iset := ISet.empty;
+            iset := empty;
             intset := IntSet.empty
         end;
         i := !i + 1;

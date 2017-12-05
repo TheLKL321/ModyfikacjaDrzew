@@ -234,7 +234,7 @@ let elements { set = set } =
 
 (** Zwraca liczbę elementów w przedziale  *)
 let iSize (a, b) =
-  if b = max_int || a = min_int then max_int
+  if b = max_int && a <= 0 || a = min_int && b >= 0 then max_int
   else b - a + 1
 
 (** Zwraca trójkę (l, p, r) w której l jest setem elementów setu s mniejszych
@@ -242,12 +242,17 @@ let iSize (a, b) =
     s nie zawiera elementu równego x, true jeśli zawiera *)
 let split x { cmp = cmp ; set = set } =
   let rec loop x = function
-      Empty ->
+    | Empty ->
         (Empty, false, Empty)
     | Node (l, (a, b), r, _) ->
         let c = nCompare x (a, b) in
         if c = 0 then
-          (addOne cmp (a, x - 1) l, true, addOne cmp (x + 1, b) r)
+          if x = a then
+            (l, true, addOne cmp (x + 1, b) r)
+          else if x = b then
+            (addOne cmp (a, x - 1) l, true, r)
+          else
+            (addOne cmp (a, x - 1) l, true, addOne cmp (x + 1, b) r)
         else if c < 0 then
           let (ll, pres, rl) = loop x l in (ll, pres, join cmp rl (a, b) r)
         else
@@ -267,10 +272,11 @@ let below x s =
           let sizek = iSize k
           and sizel = pom l
           and sizer = pom r
-          and summed = sizel + sizer + size
           in
-            if summed < sizek || summed < sizel || summed < sizer then max_int
-            else summed
+            let summed = sizel + sizer + sizek
+            in
+              if summed < sizek || summed < sizel || summed < sizer then max_int
+              else summed
     in
       if ifIncludes then
         pom (addOne iCompare (x, x) lower.set)
