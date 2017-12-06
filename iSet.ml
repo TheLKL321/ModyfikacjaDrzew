@@ -61,7 +61,7 @@ let height = function
 let make l k r =
   Node (l, k, r, max (height l) (height r) + 1)
 
-(** Założenia: Różnica wysokości l i r jest <= 1, oba drzewa są wybalansowane
+(** Założenia: Różnica wysokości l i r jest <= 3, oba drzewa są wybalansowane
     Wykonuje rotacje aby drzewo pozostało wybalansowane
     Wynikiem jest wybalansowane drzewo  *)
 let bal l k r =
@@ -110,13 +110,59 @@ let merge t1 t2 =
       let k = minElt t2 in
       bal t1 k (removeMinElt t2)
 
+let rec addOne x = function
+  | Node (l, k, r, h) ->
+      let c = cmp x k in
+        if c = 42 then Node (l, k, r, h)
+        else if c < 0 then
+          let nl = addOne x l
+          in bal nl k r
+        else
+          let nr = addOne x r
+          in bal l k nr
+  | Empty -> Node (Empty, x, Empty, 1)
+
+let rec leftMost (x, y) t =
+  match t with
+    | Empty -> (x, y)
+    | Node(l, (a, b), r, _) ->
+        if b = x then (a, b)
+        else if b + 1 = x then (a, b)
+        else if x <= b && a <= x then (a, b)
+        else if a <= x then leftMost (x, y) r
+        else
+          let temp1 = leftMost (x, y) l
+          in
+            if temp1 <> (x, y)
+            then temp1
+            else if (temp1 = (x, y) && y >= a)
+            then (a, b)
+            else (x, y)
+
+let rec rightMost (x, y) t =
+  match t with
+    | Empty -> (x, y)
+    | Node(l, (a, b), r, _) ->
+        if a = y then (a, b)
+        else if (a - 1) = y then (a, b)
+        else if y <= b && a <= y then (a, b)
+        else if b >= y then rightMost (x, y) l
+        else
+          let right = rightMost (x,y) r
+          in
+            if(right <> (x, y))
+            then right
+            else if (right = (x, y) && x <= b)
+            then (a, b)
+            else (x, y)
+
 (** Założenia: drzewa l i r są wybalansowane
     Złącza sety l i r dodając do nich przedział v
     Wynikiem jest wybalansowane drzewo  *)
 let rec join l v r =
   match (l, r) with
-  | (Empty, _) -> add v r
-  | (_, Empty) -> add v l
+  | (Empty, _) -> addOne v r
+  | (_, Empty) -> addOne v l
   | (Node(ll, lv, lr, lh), Node(rl, rv, rr, rh)) ->
       if lh > rh + 2 then bal ll lv (join lr v r) else
       if rh > lh + 2 then bal (join l v rl) rv rr else
@@ -149,7 +195,7 @@ and solver xy s =
 
 (** Założenia: x <= y
     Dodaje elementy przedziału (x, y) do danego drzewa
-    Wynikiem jest wybalansowane drzewo  *)
+    Wynikiem jest wybalansowane drzewo
 and add (x, y) = function
   | Node (l, k, r, h) ->
       let c = cmp (x, y) k
@@ -178,11 +224,48 @@ and add (x, y) = function
           in
             bal l k nr
   | Empty -> Node (Empty, (x, y), Empty, 1)
+*)
+
+(** Zwraca trójkę (l, p, r) w której l jest drzewem elementów drzewa s
+    mniejszych od x, r jest drzewem elementów drzewa s większych od x, p jest
+    równe false jeśli s nie zawiera elementu równego x, true jeśli zawiera *)
+and split x s =
+  let rec loop x = function
+    | Empty ->
+        (Empty, false, Empty)
+    | Node (l, (a, b), r, _) ->
+        let c = nCmp x (a, b) in
+        if c = 0 then
+          if x = a then
+            (l, true, addOne (x + 1, b) r)
+          else if x = b then
+            (addOne (a, x - 1) l, true, r)
+          else
+            (addOne (a, x - 1) l, true, addOne (x + 1, b) r)
+        else if c < 0 then
+          let (ll, pres, rl) = loop x l in (ll, pres, join rl (a, b) r)
+        else
+          let (lr, pres, rr) = loop x r in (join l (a, b) lr, pres, rr)
+  in
+    let (setl, pres, setr) = loop x s
+    in setl, pres, setr
+
+and add (x, y) s =
+  let (l1, l2) = leftMost (x, y) s
+  and (r1, r2) = rightMost (x, y) s
+  in
+    if (l1, l2) = (r1, r2)  && (l1, l2) = (x, y)
+    then addOne (x, y) s
+    else
+      let (l,_,_) = split (l1) s
+      and (_,_,r) = split (r2) s
+      in
+        join l (min l1 x, max r2 y) r
 
 (** Założenia: x <= y, s to wybalansowane drzewo
     Zwraca drzewo będące wynikiem usunięcia z drzewa s wszystkich elementów
     przedziału (x, y)
-    Wynikiem jest wybalansowane drzewo *)
+    Wynikiem jest wybalansowane drzewo
 let remove (x, y) s =
   let rec loop = function
     | Node (l, (a, b), r, _) ->
@@ -205,6 +288,16 @@ let remove (x, y) s =
         else merge (loop l) (loop r)
     | Empty -> Empty
   in loop s
+*)
+
+let remove (x, y) s =
+  let (left, _, _) = split x s
+  and (_, _, right) = split y s
+  in
+    if right = Empty then left
+    else if left = Empty then right
+    else join left (minElt right) (removeMinElt right)
+
 
 (** Sprawdza czy drzewo s zawiera element x  *)
 let mem x s =
@@ -247,30 +340,6 @@ let elements s =
 let iSize (a, b) =
   if b = max_int && a <= 0 || a = min_int && b >= 0 then max_int
   else b - a + 1
-
-(** Zwraca trójkę (l, p, r) w której l jest drzewem elementów drzewa s
-    mniejszych od x, r jest drzewem elementów drzewa s większych od x, p jest
-    równe false jeśli s nie zawiera elementu równego x, true jeśli zawiera *)
-let split x s =
-  let rec loop x = function
-    | Empty ->
-        (Empty, false, Empty)
-    | Node (l, (a, b), r, _) ->
-        let c = nCmp x (a, b) in
-        if c = 0 then
-          if x = a then
-            (l, true, add (x + 1, b) r)
-          else if x = b then
-            (add (a, x - 1) l, true, r)
-          else
-            (add (a, x - 1) l, true, add (x + 1, b) r)
-        else if c < 0 then
-          let (ll, pres, rl) = loop x l in (ll, pres, join rl (a, b) r)
-        else
-          let (lr, pres, rr) = loop x r in (join l (a, b) lr, pres, rr)
-  in
-    let (setl, pres, setr) = loop x s
-    in setl, pres, setr
 
 (** Zwraca liczbę elementów drzewa s które są mniejsze lub równe x
     Dla liczby większej od max_int wynikiem jest max_int
