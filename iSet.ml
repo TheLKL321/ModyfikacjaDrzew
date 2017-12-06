@@ -127,16 +127,18 @@ let rec leftMost (x, y) t =
   match t with
     | Empty -> (x, y)
     | Node(l, (a, b), r, _) ->
-        if b = x || b = x - 1 || x < b && a <= x then (a, b)
-        else if a <= x then leftMost (x, y) r
-        else
-          let left = leftMost (x, y) l
-          in
-            if left <> (x, y)
-              then left
-            else if (left = (x, y) && y >= a)
-              then (a, b)
-            else (x, y)
+        let c = cmp (a, b) (x, y)
+        in
+          if c = -1 || c = 0 then (a, b)
+          else if c = -2 then leftMost (x, y) r
+          else
+            let left = leftMost (x, y) l
+            in
+              if left <> (x, y)
+                then left
+              else if (left = (x, y) && y >= a)
+                then (a, b)
+              else (x, y)
 
 (** Założenia: x <= y, a <= b
     Zwraca przedział z t z którego suma z (x, y) tworzy jak największy przedział
@@ -145,16 +147,18 @@ let rec rightMost (x, y) t =
   match t with
     | Empty -> (x, y)
     | Node(l, (a, b), r, _) ->
-        if a = y || a = y + 1 || y <= b && a < y then (a, b)
-        else if b >= y then rightMost (x, y) l
-        else
-          let right = rightMost (x,y) r
-          in
-            if(right <> (x, y))
-              then right
-            else if (right = (x, y) && x <= b)
-              then (a, b)
-            else (x, y)
+        let c = cmp (a, b) (x, y)
+        in
+          if c = 1 || c = 0 then (a, b)
+          else if c = 2 then rightMost (x, y) l
+          else
+            let right = rightMost (x,y) r
+            in
+              if(right <> (x, y))
+                then right
+              else if (right = (x, y) && x <= b)
+                then (a, b)
+              else (x, y)
 
 (** Założenia: drzewa l i r są wybalansowane
     Złącza sety l i r dodając do nich przedział v
