@@ -35,11 +35,6 @@ let nCmp x (a, b) =
   else if x > b then 1
   else 0
 
-(** Założenia: a <= b
-    Sprawdza czy dany przedział zawiera liczbę x  *)
-let zawiera (a, b) x =
-  x >= a && x <= b
-
 (** Zwraca pusty set  *)
 let empty = Empty
 
@@ -110,6 +105,9 @@ let merge t1 t2 =
       let k = minElt t2 in
       bal t1 k (removeMinElt t2)
 
+(** Założenia: przedział x nie tworzy ciągłego przedziału z żadnym z przedziałów
+    danego drzewa
+    Zwraca drzewo będące wynikiem dodania do danego drzewa elementów z x  *)
 let rec addOne x = function
   | Node (l, k, r, h) ->
       let c = cmp x k in
@@ -122,38 +120,40 @@ let rec addOne x = function
           in bal l k nr
   | Empty -> Node (Empty, x, Empty, 1)
 
+(** Założenia: x <= y, a <= b
+    Zwraca przedział z t z którego suma z (x, y) tworzy jak największy przedział
+    przeszukując lewe poddrzewo t  *)
 let rec leftMost (x, y) t =
   match t with
     | Empty -> (x, y)
     | Node(l, (a, b), r, _) ->
-        if b = x then (a, b)
-        else if b + 1 = x then (a, b)
-        else if x <= b && a <= x then (a, b)
+        if b = x || b = x - 1 || x < b && a <= x then (a, b)
         else if a <= x then leftMost (x, y) r
         else
-          let temp1 = leftMost (x, y) l
+          let left = leftMost (x, y) l
           in
-            if temp1 <> (x, y)
-            then temp1
-            else if (temp1 = (x, y) && y >= a)
-            then (a, b)
+            if left <> (x, y)
+              then left
+            else if (left = (x, y) && y >= a)
+              then (a, b)
             else (x, y)
 
+(** Założenia: x <= y, a <= b
+    Zwraca przedział z t z którego suma z (x, y) tworzy jak największy przedział
+    przeszukując prawe poddrzewo t  *)
 let rec rightMost (x, y) t =
   match t with
     | Empty -> (x, y)
     | Node(l, (a, b), r, _) ->
-        if a = y then (a, b)
-        else if (a - 1) = y then (a, b)
-        else if y <= b && a <= y then (a, b)
+        if a = y || a = y + 1 || y <= b && a < y then (a, b)
         else if b >= y then rightMost (x, y) l
         else
           let right = rightMost (x,y) r
           in
             if(right <> (x, y))
-            then right
+              then right
             else if (right = (x, y) && x <= b)
-            then (a, b)
+              then (a, b)
             else (x, y)
 
 (** Założenia: drzewa l i r są wybalansowane
@@ -167,64 +167,6 @@ let rec join l v r =
       if lh > rh + 2 then bal ll lv (join lr v r) else
       if rh > lh + 2 then bal (join l v rl) rv rr else
       make l v r
-
-(** Zwraca parę (acc, ns) gdzie acc jest sumą przedziałów drzewa s które na
-    siebie nachodzą po dodaniu elementu xy, a ns jest drzewem bez elementów
-    tych przedziałów  *)
-and solver xy s =
-  let rec loop acc = function
-    | Empty -> (acc, Empty)
-    | Node (l, k, r, _) ->
-        let c = cmp acc k
-        in
-          if c = -2 then
-            let (result, left) = loop acc l
-            in (result, join left k r)
-          else if c = -1 then
-            ((sum k acc), r)
-          else if c = 0 then
-            let (result1, left) = loop acc l
-            and (result2, right) = loop acc r
-            in (sum result1 result2, merge left right)
-          else if c = 1 then
-            ((sum k acc), l)
-          else
-            let (result, right) = loop acc r
-            in (result, join l k right)
-  in loop xy s
-
-(** Założenia: x <= y
-    Dodaje elementy przedziału (x, y) do danego drzewa
-    Wynikiem jest wybalansowane drzewo
-and add (x, y) = function
-  | Node (l, k, r, h) ->
-      let c = cmp (x, y) k
-      in
-        if c = 42 then
-          Node (l, k, r, h)
-        else if c = -2 then
-          let nl = add (x, y) l
-          in
-            bal nl k r
-        else if c = -1 then
-          let (nk, nl) = solver (sum (x, y) k) l
-          in
-            join nl nk r
-        else if c = 0 then
-          let (nk1, nl) = solver (x, y) l
-          and (nk2, nr) = solver (sum (x, y) k) r
-          in
-            join nl (sum nk1 nk2) nr
-        else if c = 1 then
-          let (nk, nr) = solver (sum (x, y) k) r
-          in
-            join l nk nr
-        else
-          let nr = add (x, y) r
-          in
-            bal l k nr
-  | Empty -> Node (Empty, (x, y), Empty, 1)
-*)
 
 (** Zwraca trójkę (l, p, r) w której l jest drzewem elementów drzewa s
     mniejszych od x, r jest drzewem elementów drzewa s większych od x, p jest
@@ -250,6 +192,8 @@ and split x s =
     let (setl, pres, setr) = loop x s
     in setl, pres, setr
 
+(** Założenia: x <= y
+    Zwraca drzewo będące wynikiem dodania do danego drzewa elementów z (x, y) *)
 and add (x, y) s =
   let (l1, l2) = leftMost (x, y) s
   and (r1, r2) = rightMost (x, y) s
@@ -262,34 +206,8 @@ and add (x, y) s =
       in
         join l (min l1 x, max r2 y) r
 
-(** Założenia: x <= y, s to wybalansowane drzewo
-    Zwraca drzewo będące wynikiem usunięcia z drzewa s wszystkich elementów
-    przedziału (x, y)
-    Wynikiem jest wybalansowane drzewo
-let remove (x, y) s =
-  let rec loop = function
-    | Node (l, (a, b), r, _) ->
-        let c = cmp (x, y) (a, b) in
-        if c = 42 then
-          if x = a then
-            if y = b then merge l r
-            else make l (y + 1, b) r
-          else
-            if y = b then make l (a, x - 1) r
-            else join (add (a, x - 1) l) (y + 1, b) r
-        else if c = -2 then join (loop l) (a, b) r
-        else if c = -1 then
-          if y + 1 > b then merge (loop l) r
-          else join (loop l) (y + 1, b) r
-        else if c = 1 then
-          if a > x - 1 then merge l (loop r)
-          else join l (a, x - 1) (loop r)
-        else if c = 2 then join l (a, b) (loop r)
-        else merge (loop l) (loop r)
-    | Empty -> Empty
-  in loop s
-*)
-
+(** Założenia: x <= y
+    Zwraca drzewo będące wynikiem usunięcia z drzewa s elementów z (x, y)  *)
 let remove (x, y) s =
   let (left, _, _) = split x s
   and (_, _, right) = split y s
@@ -325,7 +243,6 @@ let fold f s acc =
     | Node (l, k, r, _) ->
         loop (f k (loop acc l)) r
   in loop acc s
-
 
 (** Zwraca listę wszystkich przedziałów setu s w kolejności rosnącej  *)
 let elements s =
