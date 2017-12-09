@@ -21,8 +21,8 @@ let cmp (a, b) (c, d) =
   if b < c - 1 && c <> min_int then -2
   else if a < c && b <= d then -1
   else if a < c then 0
-  else if b > d then 1
   else if a > d + 1 && d <> max_int then 2
+  else if b > d then 1
   else 42
 
 (** Założenia: a <= b
