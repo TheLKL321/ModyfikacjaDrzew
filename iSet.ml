@@ -18,11 +18,11 @@ type t =
      2 jeśli (a, b) > (c, d)
      42 jeśli (a, b) zawiera się w (c, d) *)
 let cmp (a, b) (c, d) =
-  if b < c - 1 then -2
+  if b < c - 1 && c <> min_int then -2
   else if a < c && b <= d then -1
   else if a < c then 0
-  else if a > d + 1 then 2
   else if b > d then 1
+  else if a > d + 1 && d <> max_int then 2
   else 42
 
 (** Założenia: a <= b
@@ -121,10 +121,9 @@ let rec addOne x = function
   | Empty -> Node (Empty, x, Empty, 1)
 
 (** Założenia: x <= y, a <= b
-    Zwraca przedział z t z którego suma z (x, y) tworzy jak największy przedział
-    przeszukując lewe poddrzewo t  *)
-let rec leftMost (x, y) t =
-  match t with
+    Zwraca przedział z danego drzewa z którego suma z (x, y) tworzy jak
+    największy przedział przeszukując lewe poddrzewo t  *)
+let rec leftMost (x, y) = function
     | Empty -> (x, y)
     | Node(l, (a, b), r, _) ->
         let c = cmp (a, b) (x, y)
@@ -141,10 +140,9 @@ let rec leftMost (x, y) t =
               else (x, y)
 
 (** Założenia: x <= y, a <= b
-    Zwraca przedział z t z którego suma z (x, y) tworzy jak największy przedział
-    przeszukując prawe poddrzewo t  *)
-let rec rightMost (x, y) t =
-  match t with
+    Zwraca przedział z danego drzewa z którego suma z (x, y) tworzy jak
+    największy przedział przeszukując prawe poddrzewo t  *)
+let rec rightMost (x, y) = function
     | Empty -> (x, y)
     | Node(l, (a, b), r, _) ->
         let c = cmp (a, b) (x, y)
@@ -175,23 +173,27 @@ let rec join l v r =
 (** Zwraca trójkę (l, p, r) w której l jest drzewem elementów drzewa s
     mniejszych od x, r jest drzewem elementów drzewa s większych od x, p jest
     równe false jeśli s nie zawiera elementu równego x, true jeśli zawiera *)
-and split x s =
+let rec split x s =
   let rec loop x = function
     | Empty ->
         (Empty, false, Empty)
     | Node (l, (a, b), r, _) ->
         let c = nCmp x (a, b) in
         if c = 0 then
-          if x = a then
+          if x = a && x = b then
+           (l, true, r)
+          else if x = a then
             (l, true, addOne (x + 1, b) r)
           else if x = b then
             (addOne (a, x - 1) l, true, r)
           else
             (addOne (a, x - 1) l, true, addOne (x + 1, b) r)
         else if c < 0 then
-          let (ll, pres, rl) = loop x l in (ll, pres, join rl (a, b) r)
+          let (ll, pres, rl) = loop x l
+          in (ll, pres, join rl (a, b) r)
         else
-          let (lr, pres, rr) = loop x r in (join l (a, b) lr, pres, rr)
+          let (lr, pres, rr) = loop x r
+          in (join l (a, b) lr, pres, rr)
   in
     let (setl, pres, setr) = loop x s
     in setl, pres, setr
@@ -205,8 +207,8 @@ and add (x, y) s =
     if (l1, l2) = (r1, r2)  && (l1, l2) = (x, y)
     then addOne (x, y) s
     else
-      let (l,_,_) = split (l1) s
-      and (_,_,r) = split (r2) s
+      let (l,_,_) = split l1 s
+      and (_,_,r) = split r2 s
       in
         join l (min l1 x, max r2 y) r
 
