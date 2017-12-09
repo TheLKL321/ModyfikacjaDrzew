@@ -1,13 +1,13 @@
 (** By Łukasz Zarębski  *)
 
 (** Typ drzewa BST
-    Node(lewe poddrzewo, przedział, prawe poddrzewo, wysokość drzewa)
+    Node(lewe poddrzewo, przedział, prawe poddrzewo, wysokość drzewa, ilość elementów przedziałów drzewa)
     Wszystkie przedziały w drzewie są rozłączne
     Drzewo jest wybalansowane, tzn różnica wysokości dzieci każdego ojca to
     maksymalnie 2 *)
 type t =
   | Empty
-  | Node of t * (int * int) * t * int
+  | Node of t * (int * int) * t * int * int
 
 (** Założenia: a <= b, c <= d
     Zwraca:
@@ -48,13 +48,24 @@ let sum (a, b) (c, d) = (min a c, max b d)
 
 (** Zwraca wysokość danego drzewa  *)
 let height = function
-  | Node (_, _, _, h) -> h
+  | Node (_, _, _, h, _) -> h
+  | Empty -> 0
+
+(** Założenia a <= b
+    Zwraca liczbę elementów w przedziale
+    Wynikiem jest liczba >= 0  *)
+let iSize (a, b) =
+  if abs a + abs b + 1 < 0 then max_int
+  else b - a + 1
+
+let sSize = function
+  | Node (_, _, _, _, el) -> el
   | Empty -> 0
 
 (** Złącza poddrzewa l i r podłączając je do nowego korzenia z przedziałem k
     Jeśli l i r są wybalansowane, to wynik funkcji również  *)
 let make l k r =
-  Node (l, k, r, max (height l) (height r) + 1)
+  Node (l, k, r, max (height l) (height r) + 1, iSize k + sSize l + sSize r)
 
 (** Założenia: Różnica wysokości l i r jest <= 3, oba drzewa są wybalansowane
     Wykonuje rotacje aby drzewo pozostało wybalansowane
@@ -65,35 +76,35 @@ let bal l k r =
   if hl > hr + 2 then
     match l with
     | Empty -> assert false
-    | Node (ll, lk, lr, _) ->
+    | Node (ll, lk, lr, _, _) ->
         if height ll >= height lr then make ll lk (make lr k r)
         else
           match lr with
-          | Node (lrl, lrk, lrr, _) ->
+          | Node (lrl, lrk, lrr, _, _) ->
               make (make ll lk lrl) lrk (make lrr k r)
           | Empty -> assert false
   else if hr > hl + 2 then
     match r with
     | Empty -> assert false
-    | Node (rl, rk, rr, _) ->
+    | Node (rl, rk, rr, _, _) ->
         if height rr >= height rl then make (make l k rl) rk rr
         else
           match rl with
-          | Node (rll, rlk, rlr, _) ->
+          | Node (rll, rlk, rlr, _, _) ->
               make (make l k rll) rlk (make rlr rk rr)
           | Empty -> assert false
-  else Node (l, k, r, max hl hr + 1)
+  else Node (l, k, r, max hl hr + 1, iSize k + sSize l + sSize r)
 
 (** Zwraca najmniejszy przedział w drzewie  *)
 let rec minElt = function
-  | Node (Empty, k, _, _) -> k
-  | Node (l, _, _, _) -> minElt l
+  | Node (Empty, k, _, _, _) -> k
+  | Node (l, _, _, _, _) -> minElt l
   | Empty -> raise Not_found
 
 (** Zwraca drzewo bez jego najmniejszego elementu  *)
 let rec removeMinElt = function
-  | Node (Empty, _, r, _) -> r
-  | Node (l, k, r, _) -> bal (removeMinElt l) k r
+  | Node (Empty, _, r, _, _) -> r
+  | Node (l, k, r, _, _) -> bal (removeMinElt l) k r
   | Empty -> invalid_arg "ISet.removeMinElt"
 
 (** Złącza ze sobą drzewa t1 i t2  *)
@@ -109,23 +120,23 @@ let merge t1 t2 =
     danego drzewa
     Zwraca drzewo będące wynikiem dodania do danego drzewa elementów z x  *)
 let rec addOne x = function
-  | Node (l, k, r, h) ->
+  | Node (l, k, r, h, el) ->
       let c = cmp x k in
-        if c = 42 then Node (l, k, r, h)
+        if c = 42 then Node (l, k, r, h, el)
         else if c < 0 then
           let nl = addOne x l
           in bal nl k r
         else
           let nr = addOne x r
           in bal l k nr
-  | Empty -> Node (Empty, x, Empty, 1)
+  | Empty -> Node (Empty, x, Empty, 1, iSize x)
 
 (** Założenia: x <= y, a <= b
     Zwraca przedział z danego drzewa z którego suma z (x, y) tworzy jak
     największy przedział przeszukując lewe poddrzewo t  *)
 let rec leftMost (x, y) = function
     | Empty -> (x, y)
-    | Node(l, (a, b), r, _) ->
+    | Node(l, (a, b), r, _, _) ->
         let c = cmp (a, b) (x, y)
         in
           if c = -1 || c = 0 then (a, b)
@@ -144,7 +155,7 @@ let rec leftMost (x, y) = function
     największy przedział przeszukując prawe poddrzewo t  *)
 let rec rightMost (x, y) = function
     | Empty -> (x, y)
-    | Node(l, (a, b), r, _) ->
+    | Node(l, (a, b), r, _, _) ->
         let c = cmp (a, b) (x, y)
         in
           if c = 1 || c = 0 then (a, b)
@@ -165,7 +176,7 @@ let rec join l v r =
   match (l, r) with
   | (Empty, _) -> addOne v r
   | (_, Empty) -> addOne v l
-  | (Node(ll, lv, lr, lh), Node(rl, rv, rr, rh)) ->
+  | (Node(ll, lv, lr, lh, _), Node(rl, rv, rr, rh, _)) ->
       if lh > rh + 2 then bal ll lv (join lr v r) else
       if rh > lh + 2 then bal (join l v rl) rv rr else
       make l v r
@@ -177,7 +188,7 @@ let rec split x s =
   let rec loop x = function
     | Empty ->
         (Empty, false, Empty)
-    | Node (l, (a, b), r, _) ->
+    | Node (l, (a, b), r, _, _) ->
         let c = nCmp x (a, b) in
         if c = 0 then
           if x = a && x = b then
@@ -226,7 +237,7 @@ let remove (x, y) s =
 (** Sprawdza czy drzewo s zawiera element x  *)
 let mem x s =
   let rec loop = function
-    | Node (l, k, r, _) ->
+    | Node (l, k, r, _, _) ->
         let c = nCmp x k in
         c = 0 || loop (if c < 0 then l else r)
     | Empty -> false
@@ -237,7 +248,7 @@ let mem x s =
 let iter f s =
   let rec loop = function
     | Empty -> ()
-    | Node (l, k, r, _) -> loop l; f k; loop r
+    | Node (l, k, r, _, _) -> loop l; f k; loop r
   in loop s
 
 (** Założenia: f: (int * int) -> 'a -> 'a
@@ -246,7 +257,7 @@ let iter f s =
 let fold f s acc =
   let rec loop acc = function
     | Empty -> acc
-    | Node (l, k, r, _) ->
+    | Node (l, k, r, _, _) ->
         loop (f k (loop acc l)) r
   in loop acc s
 
@@ -254,15 +265,8 @@ let fold f s acc =
 let elements s =
   let rec loop acc = function
       Empty -> acc
-    | Node(l, k, r, _) -> loop (k :: loop acc r) l
+    | Node(l, k, r, _, _) -> loop (k :: loop acc r) l
   in loop [] s
-
-(** Założenia: a <= b
-    Zwraca liczbę elementów w przedziale
-    Wynikiem jest liczba >= 0  *)
-let iSize (a, b) =
-  if b = max_int && a <= 0 || a = min_int && b >= 0 then max_int
-  else b - a + 1
 
 (** Zwraca liczbę elementów drzewa s które są mniejsze lub równe x
     Dla liczby większej od max_int wynikiem jest max_int
@@ -270,23 +274,10 @@ let iSize (a, b) =
 let below x s =
   let (lower, ifIncludes, _) = split x s
   in
-    let rec pom = function
-      | Empty -> 0
-      | Node(l, k, r, _) ->
-          let sizek = iSize k
-          and sizel = pom l
-          and sizer = pom r
-          in
-            let summed = sizel + sizer + sizek
-            in
-              if summed < sizek || summed < sizel || summed < sizer then max_int
-              else summed
+    let size = sSize lower
     in
-      if ifIncludes then
-        pom (add (x, x) lower)
-      else
-        pom lower
-
+      if ifIncludes && size <> max_int then size + 1
+      else size
 ;;
 
 (*
