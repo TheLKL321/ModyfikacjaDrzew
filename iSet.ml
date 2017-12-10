@@ -55,7 +55,7 @@ let height = function
     Zwraca liczbę elementów w przedziale
     Wynikiem jest liczba >= 0  *)
 let iSize (a, b) =
-  if abs a + abs b + 1 < 0 then max_int
+  if b - a + 1 < 0 then max_int
   else b - a + 1
 
 let sSize = function
