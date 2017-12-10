@@ -65,7 +65,15 @@ let sSize = function
 (** Złącza poddrzewa l i r podłączając je do nowego korzenia z przedziałem k
     Jeśli l i r są wybalansowane, to wynik funkcji również  *)
 let make l k r =
-  Node (l, k, r, max (height l) (height r) + 1, iSize k + sSize l + sSize r)
+  let sizek = iSize k
+  and sizel = sSize l
+  and sizer = sSize r
+  in
+    let summed = 
+      if sizek + sizel + sizer < 0 || sizek + sizel < 0 || sizek + sizer < 0 || sizer + sizel < 0 then max_int 
+      else sizek + sizel + sizer
+    in 
+      Node (l, k, r, max (height l) (height r) + 1, summed)
 
 (** Założenia: Różnica wysokości l i r jest <= 3, oba drzewa są wybalansowane
     Wykonuje rotacje aby drzewo pozostało wybalansowane
@@ -93,7 +101,7 @@ let bal l k r =
           | Node (rll, rlk, rlr, _, _) ->
               make (make l k rll) rlk (make rlr rk rr)
           | Empty -> assert false
-  else Node (l, k, r, max hl hr + 1, iSize k + sSize l + sSize r)
+  else make l k r
 
 (** Zwraca najmniejszy przedział w drzewie  *)
 let rec minElt = function
