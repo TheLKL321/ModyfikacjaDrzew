@@ -1,10 +1,11 @@
 (** By Łukasz Zarębski  *)
 
 (** Typ drzewa BST
-    Node(lewe poddrzewo, przedział, prawe poddrzewo, wysokość drzewa, ilość elementów przedziałów drzewa)
+    Node(lewe poddrzewo, przedział, prawe poddrzewo, wysokość drzewa, ilość
+    elementów przedziałów drzewa)
     Wszystkie przedziały w drzewie są rozłączne
-    Drzewo jest wybalansowane, tzn różnica wysokości dzieci każdego ojca to
-    maksymalnie 2 *)
+    Każde drzewo jest wybalansowane, tzn różnica wysokości dzieci każdego ojca
+    to maksymalnie 2 *)
 type t =
   | Empty
   | Node of t * (int * int) * t * int * int
@@ -58,6 +59,7 @@ let iSize (a, b) =
   if b - a + 1 < 0 then max_int
   else b - a + 1
 
+(** Zwraca ilość elementów danego drzewa  *)
 let sSize = function
   | Node (_, _, _, _, el) -> el
   | Empty -> 0
@@ -70,7 +72,8 @@ let make l k r =
   and sizer = sSize r
   in
     let summed = 
-      if sizek + sizel + sizer < 0 || sizek + sizel < 0 || sizek + sizer < 0 || sizer + sizel < 0 then max_int 
+      if sizek + sizel + sizer < 0 || sizek + sizel < 0 || sizek + sizer < 0 ||
+      sizer + sizel < 0 then max_int 
       else sizek + sizel + sizer
     in 
       Node (l, k, r, max (height l) (height r) + 1, summed)
